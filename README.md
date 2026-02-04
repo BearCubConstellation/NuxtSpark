@@ -1,6 +1,6 @@
-# Nuxt Minimal Starter
+# NuxtSpark
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+NuxtSpark 是 Cymrise 使用的 Vue 快速启动模版，基于 Nuxt 构建。
 
 ## Setup
 
@@ -71,5 +71,3 @@ yarn preview
 # bun
 bun run preview
 ```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
