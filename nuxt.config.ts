@@ -13,4 +13,11 @@ export default defineNuxtConfig({
     },
     pageTransition: { name: 'page', mode: 'out-in' },
   },
+  runtimeConfig: {
+    public: {
+      amapKey: process.env.NUXT_PUBLIC_AMAP_KEY,
+      baiduMapAk: process.env.NUXT_PUBLIC_BAIDU_MAP_AK,
+      tencentMapKey: process.env.NUXT_PUBLIC_TENCENT_MAP_KEY,
+    },
+  },
 })
