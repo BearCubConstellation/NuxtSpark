@@ -1,0 +1,224 @@
+﻿<script setup lang="ts">
+const config = useRuntimeConfig()
+
+const status = ref<'idle' | 'loading' | 'ready' | 'error' | 'missing-key'>('idle')
+const defaultCenter = { lng: 116.404, lat: 39.915 } // Beijing
+
+const tencentKey = computed(() => config.public.tencentMapKey as string | undefined)
+
+const tencentTool = ref<'marker' | 'polyline' | 'polygon' | 'circle' | 'rectangle' | 'ellipse'>('rectangle') // 当前选中的绘制工具
+let tencentEditor: any = null
+let tencentOverlays: Record<string, any> | null = null
+
+function maskKey(value?: string) {
+  if (!value) return 'missing'
+  const half = Math.max(1, Math.floor(value.length / 2))
+  return `${value.slice(0, half)}...`
+}
+
+function loadScriptOnce(id: string, src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (document.getElementById(id)) {
+      console.info(`[map] script already loaded: ${id}`)
+      resolve()
+      return
+    }
+    const script = document.createElement('script')
+    script.id = id
+    script.src = src
+    script.async = false
+    script.defer = false
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error(`Failed to load ${src}`))
+    document.head.appendChild(script)
+  })
+}
+
+function waitForGlobal(check: () => boolean, timeoutMs = 8000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const start = Date.now()
+    const timer = window.setInterval(() => {
+      if (check()) {
+        window.clearInterval(timer)
+        resolve()
+        return
+      }
+      if (Date.now() - start > timeoutMs) {
+        window.clearInterval(timer)
+        reject(new Error('timeout'))
+      }
+    }, 100)
+  })
+}
+
+function setTencentTool(id: typeof tencentTool.value) { // 切换腾讯绘制工具
+  tencentTool.value = id // 更新当前选中工具
+  tencentEditor?.setActiveOverlay?.(id) // 通知编辑器切换激活图层
+}
+
+async function initTencent() {
+  const key = tencentKey.value
+  console.info(`[map][tencent] key: ${maskKey(key)}`)
+  if (!key) {
+    status.value = 'missing-key'
+    return
+  }
+  status.value = 'loading'
+  try {
+    await loadScriptOnce('tencent-map-sdk', `https://map.qq.com/api/gljs?v=1.exp&key=${key}&libraries=tools`)
+    await waitForGlobal(() => Boolean((window as any).TMap))
+    const TMap = (window as any).TMap
+    if (!TMap) throw new Error('TMap not found')
+    const container = document.getElementById('qq-map')
+    if (!container) throw new Error('qq-map container not found')
+
+    const map = new TMap.Map(container, {
+      center: new TMap.LatLng(defaultCenter.lat, defaultCenter.lng),
+      zoom: 12,
+      pitch: 35,
+    })
+
+    const marker = new TMap.MultiMarker({ map })
+    const polyline = new TMap.MultiPolyline({ map })
+    const polygon = new TMap.MultiPolygon({ map })
+    const circle = new TMap.MultiCircle({ map })
+    const rectangle = new TMap.MultiRectangle({ map })
+    const ellipse = new TMap.MultiEllipse({ map })
+    tencentOverlays = { marker, polyline, polygon, circle, rectangle, ellipse }
+
+    tencentEditor = new TMap.tools.GeometryEditor({
+      map,
+      overlayList: [
+        { overlay: marker, id: 'marker' },
+        { overlay: polyline, id: 'polyline' },
+        { overlay: polygon, id: 'polygon' },
+        { overlay: circle, id: 'circle' },
+        { overlay: rectangle, id: 'rectangle' },
+        { overlay: ellipse, id: 'ellipse' },
+      ],
+      actionMode: TMap.tools.constants.EDITOR_ACTION.DRAW,
+      activeOverlayId: tencentTool.value,
+      snappable: true,
+    })
+
+    tencentEditor.on('draw_complete', (geometry: any) => {
+      const id = geometry.id
+      const activeId = tencentEditor?.getActiveOverlay?.().id
+      if (activeId === 'rectangle' && tencentOverlays?.rectangle) {
+        const geo = tencentOverlays.rectangle.geometries.filter((item: any) => item.id === id)
+        console.log('[tencent][rectangle] paths:', geo[0]?.paths)
+      }
+      if (activeId === 'polygon' && tencentOverlays?.polygon) {
+        const geo = tencentOverlays.polygon.geometries.filter((item: any) => item.id === id)
+        console.log('[tencent][polygon] paths:', geo[0]?.paths)
+      }
+    })
+
+    status.value = 'ready'
+    console.info('[map][tencent] ready')
+  } catch {
+    status.value = 'error'
+    console.warn('[map][tencent] init failed')
+  }
+}
+
+onMounted(() => {
+  void initTencent()
+})
+</script>
+
+<template>
+  <section class="panel">
+    <header class="panel-header">
+      <h2>腾讯位置服务</h2>
+      <span class="status">{{ status }}</span>
+    </header>
+    <div class="tool-bar">
+      <button class="tool-btn" :class="{ active: tencentTool === 'marker' }" type="button" @click="setTencentTool('marker')">点</button>
+      <button class="tool-btn" :class="{ active: tencentTool === 'polyline' }" type="button" @click="setTencentTool('polyline')">线</button>
+      <button class="tool-btn" :class="{ active: tencentTool === 'polygon' }" type="button" @click="setTencentTool('polygon')">多边形</button>
+      <button class="tool-btn" :class="{ active: tencentTool === 'circle' }" type="button" @click="setTencentTool('circle')">圆</button>
+      <button class="tool-btn" :class="{ active: tencentTool === 'rectangle' }" type="button" @click="setTencentTool('rectangle')">矩形</button>
+      <button class="tool-btn" :class="{ active: tencentTool === 'ellipse' }" type="button" @click="setTencentTool('ellipse')">椭圆</button>
+    </div>
+    <div id="qq-map" class="map">
+      <div v-if="status !== 'ready'" class="placeholder">
+        {{ status === 'missing-key' ? '缺少 Key' : '加载中或失败' }}
+      </div>
+    </div>
+  </section>
+</template>
+
+<style scoped>
+.panel {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f0f2f5;
+  background: #fafafa;
+}
+
+.panel-header h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.tool-bar {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f2f5;
+  background: #fff;
+  flex-wrap: wrap;
+}
+
+.tool-btn {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #374151;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tool-btn.active {
+  border-color: #4f46e5;
+  color: #4f46e5;
+  background: #eef2ff;
+}
+
+.status {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.map {
+  position: relative;
+  height: 360px;
+}
+
+.placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #9ca3af;
+  background: repeating-linear-gradient(
+    45deg,
+    #f8fafc,
+    #f8fafc 10px,
+    #f1f5f9 10px,
+    #f1f5f9 20px
+  );
+  font-size: 14px;
+}
+</style>
