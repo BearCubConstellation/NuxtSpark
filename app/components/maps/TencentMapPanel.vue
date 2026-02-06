@@ -140,6 +140,7 @@ onMounted(() => {
       <button class="tool-btn" :class="{ active: tencentTool === 'circle' }" type="button" @click="setTencentTool('circle')">圆</button>
       <button class="tool-btn" :class="{ active: tencentTool === 'rectangle' }" type="button" @click="setTencentTool('rectangle')">矩形</button>
       <button class="tool-btn" :class="{ active: tencentTool === 'ellipse' }" type="button" @click="setTencentTool('ellipse')">椭圆</button>
+      <span class="tool-hint">点击地图区域移动鼠标开始绘制电子围栏</span>
     </div>
     <div id="qq-map" class="map">
       <div v-if="status !== 'ready'" class="placeholder">
@@ -173,6 +174,7 @@ onMounted(() => {
 
 .tool-bar {
   display: flex;
+  align-items: center;
   gap: 8px;
   padding: 8px 12px;
   border-bottom: 1px solid #f0f2f5;
@@ -194,6 +196,14 @@ onMounted(() => {
   border-color: #4f46e5;
   color: #4f46e5;
   background: #eef2ff;
+}
+
+.tool-hint {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .status {

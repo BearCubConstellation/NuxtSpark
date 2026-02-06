@@ -12,6 +12,10 @@ definePageMeta({
 
 <template>
   <div class="page">
+    <header class="page-header">
+      <h1>地图组件概览</h1>
+      <p>该页面仅用于大致展示三个地图组件的基础能力。</p>
+    </header>
     <div class="grid">
       <!-- 百度 -->
       <ClientOnly>
@@ -32,6 +36,22 @@ definePageMeta({
 <style scoped>
 .page {
   padding: 24px;
+}
+
+.page-header {
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.page-header h1 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+
+.page-header p {
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
 }
 
 .grid {
