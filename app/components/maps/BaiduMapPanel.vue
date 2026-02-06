@@ -69,7 +69,9 @@ async function initBaidu() {
     const map = new BMapGL.Map('baidu-map')
     console.info('[map][baidu] Map 实例创建完成，设置中心点')
     const point = new BMapGL.Point(defaultCenter.lng, defaultCenter.lat)
-    map.centerAndZoom(point, 12)
+    map.centerAndZoom(point, 14)
+    map.setTilt(60)
+    map.setHeading(0)
     map.enableScrollWheelZoom(true)
     status.value = 'ready'
     console.info('[map][baidu] ready')
