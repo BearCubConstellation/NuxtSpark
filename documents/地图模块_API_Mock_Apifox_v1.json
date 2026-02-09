@@ -1,0 +1,2213 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "地图模块 API（腾讯位置服务）v2",
+    "version": "2.0.0",
+    "description": "根据 2026-02-09 对齐结果：后端计算、前端纯展示；包含 /routes/{id}/render 聚合渲染接口。"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:9001",
+      "description": "本地开发"
+    },
+    {
+      "url": "{baseUrl}",
+      "description": "可配置",
+      "variables": {
+        "baseUrl": {
+          "default": "http://localhost:9001"
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "name": "Fence",
+      "description": "电子围栏"
+    },
+    {
+      "name": "Point",
+      "description": "点位"
+    },
+    {
+      "name": "Geo",
+      "description": "地理解析"
+    },
+    {
+      "name": "Route",
+      "description": "路线"
+    },
+    {
+      "name": "PunchRecord",
+      "description": "打卡记录"
+    },
+    {
+      "name": "Staff",
+      "description": "人员/设备"
+    },
+    {
+      "name": "Export",
+      "description": "导出"
+    }
+  ],
+  "paths": {
+    "/api/fences/query": {
+      "post": {
+        "tags": [
+          "Fence"
+        ],
+        "summary": "查询围栏列表",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PageRequest"
+                  }
+                ],
+                "properties": {
+                  "keyword": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "ENABLED",
+                      "DISABLED"
+                    ]
+                  }
+                }
+              },
+              "example": {
+                "pageNo": 1,
+                "pageSize": 20,
+                "keyword": "收货点",
+                "status": "ENABLED"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer"
+                            },
+                            "list": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/FenceDTO"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/fences": {
+      "post": {
+        "tags": [
+          "Fence"
+        ],
+        "summary": "新增围栏",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "CIRCLE",
+                      "POLYGON"
+                    ]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "ENABLED",
+                      "DISABLED"
+                    ]
+                  },
+                  "center": {
+                    "$ref": "#/components/schemas/LngLat"
+                  },
+                  "radius": {
+                    "type": "number"
+                  },
+                  "points": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/LngLat"
+                    }
+                  },
+                  "remark": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "type",
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/fences/{id}": {
+      "get": {
+        "tags": [
+          "Fence"
+        ],
+        "summary": "获取围栏详情",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/FenceDTO"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Fence"
+        ],
+        "summary": "编辑围栏",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FenceDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Fence"
+        ],
+        "summary": "删除围栏",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/points/query": {
+      "post": {
+        "tags": [
+          "Point"
+        ],
+        "summary": "查询点位列表",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PageRequest"
+                  }
+                ],
+                "properties": {
+                  "keyword": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer"
+                            },
+                            "list": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/PointDTO"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/points": {
+      "post": {
+        "tags": [
+          "Point"
+        ],
+        "summary": "新增点位",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "location": {
+                    "$ref": "#/components/schemas/LngLat"
+                  },
+                  "fenceId": {
+                    "type": "string"
+                  },
+                  "remark": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "location"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/points/{id}": {
+      "get": {
+        "tags": [
+          "Point"
+        ],
+        "summary": "获取点位详情",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/PointDTO"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Point"
+        ],
+        "summary": "编辑点位",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PointDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Point"
+        ],
+        "summary": "删除点位",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/geo/reverse": {
+      "get": {
+        "tags": [
+          "Geo"
+        ],
+        "summary": "逆地理编码（坐标转地址）",
+        "parameters": [
+          {
+            "name": "lng",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "lat",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ReverseGeocodeResponse"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/routes/query": {
+      "post": {
+        "tags": [
+          "Route"
+        ],
+        "summary": "查询路线列表",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PageRequest"
+                  }
+                ],
+                "properties": {
+                  "keyword": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer"
+                            },
+                            "list": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/RouteDTO"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/routes": {
+      "post": {
+        "tags": [
+          "Route"
+        ],
+        "summary": "新增路线（手动排序）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "travelMode": {
+                    "type": "string",
+                    "enum": [
+                      "BICYCLING"
+                    ]
+                  },
+                  "points": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "pointId": {
+                          "type": "string"
+                        },
+                        "order": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "pointId",
+                        "order"
+                      ]
+                    }
+                  },
+                  "remark": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "travelMode",
+                  "points"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/routes/{id}": {
+      "get": {
+        "tags": [
+          "Route"
+        ],
+        "summary": "获取路线详情（可选预览 needPolyline=true）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "needPolyline",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "true 时返回 preview（polyline/segments等）"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/RouteDetailDTO"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Route"
+        ],
+        "summary": "编辑路线",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RouteDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Route"
+        ],
+        "summary": "删除路线",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/routes/recommend-order": {
+      "post": {
+        "tags": [
+          "Route"
+        ],
+        "summary": "推荐排序（最短距离原则）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "travelMode": {
+                    "type": "string",
+                    "enum": [
+                      "BICYCLING"
+                    ]
+                  },
+                  "pointIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "fixedStartPointId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "fixedEndPointId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "needPolyline": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "travelMode",
+                  "pointIds"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "orderedPointIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "segments": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/RecommendOrderSegment"
+                              }
+                            },
+                            "totalTheoryDistanceMeter": {
+                              "type": "integer"
+                            },
+                            "totalTheoryDurationSecond": {
+                              "type": "integer"
+                            },
+                            "bound": {
+                              "$ref": "#/components/schemas/Bound"
+                            },
+                            "polyline": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "$ref": "#/components/schemas/LngLat"
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/routes/{id}/render": {
+      "get": {
+        "tags": [
+          "Route"
+        ],
+        "summary": "路线渲染聚合（核心 /render）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/RouteRenderDTO"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/punch-records/query": {
+      "post": {
+        "tags": [
+          "PunchRecord"
+        ],
+        "summary": "查询打卡记录（分页）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PageRequest"
+                  }
+                ],
+                "properties": {
+                  "staffIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "dateFrom": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "dateTo": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "types": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "ROUTINE",
+                        "NON_ROUTINE"
+                      ]
+                    }
+                  },
+                  "orderFlags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "ORDERED",
+                        "NOT_ORDERED"
+                      ]
+                    }
+                  },
+                  "deviationFlags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "NORMAL",
+                        "DEVIATED"
+                      ]
+                    }
+                  },
+                  "needPolyline": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "pageNo",
+                  "pageSize",
+                  "dateFrom",
+                  "dateTo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer"
+                            },
+                            "list": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/PunchRecordDTO"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/punch-records/{id}": {
+      "get": {
+        "tags": [
+          "PunchRecord"
+        ],
+        "summary": "打卡记录详情（可选 needPolyline=true）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "needPolyline",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/PunchRecordDTO"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/staff/list": {
+      "get": {
+        "tags": [
+          "Staff"
+        ],
+        "summary": "人员列表（用于筛选下拉）",
+        "parameters": [
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/StaffListItem"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/devices/list": {
+      "get": {
+        "tags": [
+          "Staff"
+        ],
+        "summary": "设备列表（可选）",
+        "parameters": [
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/DeviceListItem"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exports": {
+      "post": {
+        "tags": [
+          "Export"
+        ],
+        "summary": "创建导出任务",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "PUNCH_RECORDS"
+                    ]
+                  },
+                  "params": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "fileFormat": {
+                    "type": "string",
+                    "enum": [
+                      "EXCEL",
+                      "PDF"
+                    ]
+                  }
+                },
+                "required": [
+                  "type",
+                  "params",
+                  "fileFormat"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "taskId": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exports/{taskId}": {
+      "get": {
+        "tags": [
+          "Export"
+        ],
+        "summary": "查询导出任务状态",
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ExportTaskDTO"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exports/{taskId}/download": {
+      "get": {
+        "tags": [
+          "Export"
+        ],
+        "summary": "下载导出文件（可选）",
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "文件流（后端实现时返回）"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "example": 0
+          },
+          "message": {
+            "type": "string",
+            "example": "ok"
+          },
+          "data": {}
+        },
+        "required": [
+          "code",
+          "message",
+          "data"
+        ]
+      },
+      "PageRequest": {
+        "type": "object",
+        "properties": {
+          "pageNo": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "pageNo",
+          "pageSize"
+        ]
+      },
+      "PageResponse": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "list": {
+            "type": "array",
+            "items": {}
+          }
+        },
+        "required": [
+          "total",
+          "list"
+        ]
+      },
+      "LngLat": {
+        "type": "object",
+        "properties": {
+          "lng": {
+            "type": "number",
+            "format": "double",
+            "title": "经度"
+          },
+          "lat": {
+            "type": "number",
+            "format": "double",
+            "title": "纬度"
+          }
+        },
+        "required": [
+          "lng",
+          "lat"
+        ]
+      },
+      "Bound": {
+        "type": "object",
+        "properties": {
+          "sw": {
+            "$ref": "#/components/schemas/LngLat",
+            "title": "西南角坐标"
+          },
+          "ne": {
+            "$ref": "#/components/schemas/LngLat",
+            "title": "东北角坐标"
+          }
+        },
+        "required": [
+          "sw",
+          "ne"
+        ]
+      },
+      "FenceDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "围栏ID"
+          },
+          "name": {
+            "type": "string",
+            "title": "围栏名称"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "CIRCLE",
+              "POLYGON"
+            ],
+            "title": "围栏类型"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ENABLED",
+              "DISABLED"
+            ],
+            "title": "围栏状态"
+          },
+          "center": {
+            "$ref": "#/components/schemas/LngLat",
+            "title": "圆形围栏中心点"
+          },
+          "radius": {
+            "type": "number",
+            "format": "double",
+            "title": "圆形围栏半径（米）"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LngLat"
+            },
+            "title": "多边形围栏顶点集合"
+          },
+          "bound": {
+            "$ref": "#/components/schemas/Bound",
+            "title": "围栏外接矩形"
+          },
+          "remark": {
+            "type": "string",
+            "nullable": true,
+            "title": "备注"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "创建时间"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "更新时间"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "status"
+        ]
+      },
+      "PointDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "点位ID"
+          },
+          "name": {
+            "type": "string",
+            "title": "点位名称"
+          },
+          "location": {
+            "$ref": "#/components/schemas/LngLat",
+            "title": "点位坐标"
+          },
+          "address": {
+            "type": "string",
+            "nullable": true,
+            "title": "地址"
+          },
+          "fenceId": {
+            "type": "string",
+            "nullable": true,
+            "title": "关联围栏ID"
+          },
+          "remark": {
+            "type": "string",
+            "nullable": true,
+            "title": "备注"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "创建时间"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "更新时间"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "location"
+        ]
+      },
+      "ReverseGeocodeResponse": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "$ref": "#/components/schemas/LngLat"
+          },
+          "address": {
+            "type": "string"
+          },
+          "adInfo": {
+            "type": "object",
+            "properties": {
+              "province": {
+                "type": "string"
+              },
+              "city": {
+                "type": "string"
+              },
+              "district": {
+                "type": "string"
+              }
+            }
+          },
+          "poi": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "distanceMeter": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "required": [
+          "location",
+          "address"
+        ]
+      },
+      "RecommendOrderSegment": {
+        "type": "object",
+        "properties": {
+          "fromPointId": {
+            "type": "string"
+          },
+          "toPointId": {
+            "type": "string"
+          },
+          "theoryDistanceMeter": {
+            "type": "integer"
+          },
+          "theoryDurationSecond": {
+            "type": "integer"
+          },
+          "polyline": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "编码串（可选）"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/LngLat"
+                }
+              }
+            ]
+          }
+        },
+        "required": [
+          "fromPointId",
+          "toPointId",
+          "theoryDistanceMeter",
+          "theoryDurationSecond"
+        ]
+      },
+      "RoutePointRef": {
+        "type": "object",
+        "properties": {
+          "pointId": {
+            "type": "string",
+            "title": "点位ID"
+          },
+          "order": {
+            "type": "integer",
+            "title": "点位顺序"
+          },
+          "name": {
+            "type": "string",
+            "title": "点位名称"
+          },
+          "location": {
+            "$ref": "#/components/schemas/LngLat",
+            "title": "点位坐标"
+          },
+          "fenceIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "关联围栏ID集合"
+          }
+        },
+        "required": [
+          "pointId",
+          "order"
+        ]
+      },
+      "RouteDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "路线ID"
+          },
+          "name": {
+            "type": "string",
+            "title": "路线名称"
+          },
+          "travelMode": {
+            "type": "string",
+            "enum": [
+              "BICYCLING"
+            ],
+            "title": "出行方式"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutePointRef"
+            },
+            "title": "路线点位顺序"
+          },
+          "remark": {
+            "type": "string",
+            "nullable": true,
+            "title": "备注"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "创建时间"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "更新时间"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "travelMode",
+          "points"
+        ]
+      },
+      "RoutePreviewDTO": {
+        "type": "object",
+        "properties": {
+          "bound": {
+            "$ref": "#/components/schemas/Bound",
+            "title": "路线视野范围"
+          },
+          "polyline": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/LngLat"
+                }
+              }
+            ],
+            "title": "贴路网线路"
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecommendOrderSegment"
+            },
+            "title": "路线分段信息"
+          },
+          "totalTheoryDistanceMeter": {
+            "type": "integer",
+            "title": "理论总距离（米）"
+          },
+          "totalTheoryDurationSecond": {
+            "type": "integer",
+            "title": "理论总耗时（秒）"
+          }
+        }
+      },
+      "RouteDetailDTO": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RouteDTO"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "preview": {
+                "$ref": "#/components/schemas/RoutePreviewDTO"
+              }
+            }
+          }
+        ]
+      },
+      "RouteRenderDTO": {
+        "type": "object",
+        "properties": {
+          "route": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "travelMode": {
+                "type": "string",
+                "enum": [
+                  "BICYCLING"
+                ]
+              },
+              "bound": {
+                "$ref": "#/components/schemas/Bound"
+              },
+              "polyline": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/LngLat"
+                }
+              },
+              "points": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "location": {
+                      "$ref": "#/components/schemas/LngLat"
+                    },
+                    "fenceIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "location"
+                  ]
+                }
+              },
+              "segments": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RecommendOrderSegment"
+                }
+              },
+              "totalTheoryDistanceMeter": {
+                "type": "integer"
+              },
+              "totalTheoryDurationSecond": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "travelMode",
+              "polyline",
+              "points"
+            ],
+            "title": "路线渲染数据"
+          },
+          "fences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FenceDTO"
+            },
+            "title": "相关电子围栏集合"
+          }
+        },
+        "required": [
+          "route",
+          "fences"
+        ]
+      },
+      "PunchRecordDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "打卡记录ID"
+          },
+          "staffId": {
+            "type": "string",
+            "title": "人员ID"
+          },
+          "staffName": {
+            "type": "string",
+            "title": "人员姓名"
+          },
+          "deviceId": {
+            "type": "string",
+            "nullable": true,
+            "title": "设备ID"
+          },
+          "routeId": {
+            "type": "string",
+            "nullable": true,
+            "title": "关联路线ID"
+          },
+          "fromPointId": {
+            "type": "string",
+            "nullable": true,
+            "title": "起始点位ID"
+          },
+          "toPointId": {
+            "type": "string",
+            "nullable": true,
+            "title": "结束点位ID"
+          },
+          "arriveAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "title": "到达时间"
+          },
+          "leaveAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "title": "离开时间"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ROUTINE",
+              "NON_ROUTINE"
+            ],
+            "title": "打卡类型"
+          },
+          "orderFlag": {
+            "type": "string",
+            "enum": [
+              "ORDERED",
+              "NOT_ORDERED"
+            ],
+            "title": "是否按顺序"
+          },
+          "deviationFlag": {
+            "type": "string",
+            "enum": [
+              "NORMAL",
+              "DEVIATED"
+            ],
+            "title": "是否偏离路线"
+          },
+          "theoryDistanceMeter": {
+            "type": "integer",
+            "nullable": true,
+            "title": "理论距离（米）"
+          },
+          "actualDistanceMeter": {
+            "type": "integer",
+            "nullable": true,
+            "title": "实际距离（米）"
+          },
+          "deviationPercent": {
+            "type": "number",
+            "format": "double",
+            "nullable": true,
+            "title": "偏离比例"
+          },
+          "mapView": {
+            "type": "object",
+            "properties": {
+              "fromLocation": {
+                "$ref": "#/components/schemas/LngLat"
+              },
+              "toLocation": {
+                "$ref": "#/components/schemas/LngLat"
+              },
+              "theoryPolyline": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/LngLat"
+                    }
+                  }
+                ]
+              },
+              "actualTrackPolyline": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/LngLat"
+                    }
+                  }
+                ]
+              },
+              "bound": {
+                "$ref": "#/components/schemas/Bound"
+              }
+            },
+            "title": "地图展示数据"
+          }
+        },
+        "required": [
+          "id",
+          "staffId",
+          "type",
+          "orderFlag",
+          "deviationFlag"
+        ]
+      },
+      "StaffListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "deptName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "DeviceListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "sn": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "ExportTaskDTO": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "title": "导出任务ID"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "RUNNING",
+              "SUCCESS",
+              "FAILED"
+            ],
+            "title": "任务状态"
+          },
+          "progress": {
+            "type": "integer",
+            "title": "进度百分比"
+          },
+          "downloadUrl": {
+            "type": "string",
+            "nullable": true,
+            "title": "下载地址"
+          },
+          "expiredAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "title": "过期时间"
+          }
+        },
+        "required": [
+          "taskId",
+          "status"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
