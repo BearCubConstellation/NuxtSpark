@@ -9,11 +9,14 @@ const defaultCenter = { lng: 116.404, lat: 39.915 } // Beijing
 const tencentKey = computed(() => config.public.tencentMapKey as string | undefined)
 
 const tencentTool = ref<'marker' | 'polyline' | 'polygon' | 'circle' | 'rectangle' | 'ellipse'>('rectangle') // 当前选中的绘制工具
+let tencentSdk: any = null
+let tencentMap: any = null
 let tencentEditor: any = null
 let tencentOverlays: Record<string, any> | null = null
 const toolNotification = ref<string | null>(null)
 let toolNoticeTimer: number | null = null
 const drawOutput = ref<string>('')
+const editorMode = ref<any>(null)
 
 const toolLabels: Record<typeof tencentTool.value, string> = {
   marker: '点',
@@ -133,6 +136,24 @@ function setTencentTool(id: typeof tencentTool.value) { // 切换腾讯绘制工
   }, 1600)
 }
 
+// 设置编辑器模式（DRAW绘制模式、INTERACT交互模式）
+function setEditorModel(mode: any) {
+  if (!tencentEditor || !tencentSdk) return
+  const actions = tencentSdk?.tools?.constants?.EDITOR_ACTION
+  if (!actions || !tencentEditor.setActionMode) return
+  tencentEditor.setActionMode(mode)
+  editorMode.value = mode
+}
+
+// 切换编辑器模式
+function toggleEditorMode() {
+  if (!tencentSdk) return
+  const actions = tencentSdk?.tools?.constants?.EDITOR_ACTION
+  if (!actions) return
+  const nextMode = editorMode.value === actions.DRAW ? actions.INTERACT : actions.DRAW
+  setEditorModel(nextMode)
+}
+
 // 初始化腾讯地图与绘制工具
 async function initTencent() {
   const key = tencentKey.value
@@ -147,6 +168,7 @@ async function initTencent() {
     await waitForGlobal(() => Boolean((window as any).TMap))
     const TMap = (window as any).TMap
     if (!TMap) throw new Error('TMap not found')
+    tencentSdk = TMap
     const container = document.getElementById('qq-map')
     if (!container) throw new Error('qq-map container not found')
 
@@ -155,8 +177,10 @@ async function initTencent() {
       zoom: 12,
       pitch: 35,
     })
+    tencentMap = map
 
     initTencentDrawTools(TMap, map)
+    editorMode.value = TMap.tools.constants.EDITOR_ACTION.DRAW
 
     status.value = 'ready'
     console.info('[map][tencent] ready')
@@ -187,12 +211,15 @@ onBeforeUnmount(() => {
       <span class="status">{{ status }}</span>
     </header>
     <div class="tool-bar">
-      <button class="tool-btn" :class="{ active: tencentTool === 'marker' }" type="button" @click="setTencentTool('marker')">点</button>
-      <button class="tool-btn" :class="{ active: tencentTool === 'polyline' }" type="button" @click="setTencentTool('polyline')">线</button>
+      <!-- <button class="tool-btn" :class="{ active: tencentTool === 'marker' }" type="button" @click="setTencentTool('marker')">点</button>
+      <button class="tool-btn" :class="{ active: tencentTool === 'polyline' }" type="button" @click="setTencentTool('polyline')">线</button> -->
       <button class="tool-btn" :class="{ active: tencentTool === 'polygon' }" type="button" @click="setTencentTool('polygon')">多边形</button>
       <button class="tool-btn" :class="{ active: tencentTool === 'circle' }" type="button" @click="setTencentTool('circle')">圆</button>
       <button class="tool-btn" :class="{ active: tencentTool === 'rectangle' }" type="button" @click="setTencentTool('rectangle')">矩形</button>
       <button class="tool-btn" :class="{ active: tencentTool === 'ellipse' }" type="button" @click="setTencentTool('ellipse')">椭圆</button>
+      <button class="tool-btn" type="button" @click="toggleEditorMode">
+        编辑器模式：{{ editorMode === tencentSdk?.tools?.constants?.EDITOR_ACTION?.DRAW ? '绘制' : '交互' }}
+      </button>
       <span class="tool-hint">点击地图区域移动鼠标开始绘制电子围栏</span>
     </div>
     <transition name="tool-toast">
