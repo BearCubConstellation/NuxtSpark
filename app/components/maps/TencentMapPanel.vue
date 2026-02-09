@@ -9,6 +9,17 @@ const tencentKey = computed(() => config.public.tencentMapKey as string | undefi
 const tencentTool = ref<'marker' | 'polyline' | 'polygon' | 'circle' | 'rectangle' | 'ellipse'>('rectangle') // 当前选中的绘制工具
 let tencentEditor: any = null
 let tencentOverlays: Record<string, any> | null = null
+const toolNotification = ref<string | null>(null)
+let toolNoticeTimer: number | null = null
+
+const toolLabels: Record<typeof tencentTool.value, string> = {
+  marker: '点',
+  polyline: '线',
+  polygon: '多边形',
+  circle: '圆',
+  rectangle: '矩形',
+  ellipse: '椭圆',
+}
 
 function maskKey(value?: string) {
   if (!value) return 'missing'
@@ -54,6 +65,13 @@ function waitForGlobal(check: () => boolean, timeoutMs = 8000): Promise<void> {
 function setTencentTool(id: typeof tencentTool.value) { // 切换腾讯绘制工具
   tencentTool.value = id // 更新当前选中工具
   tencentEditor?.setActiveOverlay?.(id) // 通知编辑器切换激活图层
+  const label = toolLabels[id] ?? id
+  toolNotification.value = `已切换为${label}`
+  if (toolNoticeTimer) window.clearTimeout(toolNoticeTimer)
+  toolNoticeTimer = window.setTimeout(() => {
+    toolNotification.value = null
+    toolNoticeTimer = null
+  }, 1600)
 }
 
 async function initTencent() {
@@ -125,6 +143,13 @@ async function initTencent() {
 onMounted(() => {
   void initTencent()
 })
+
+onBeforeUnmount(() => {
+  if (toolNoticeTimer) {
+    window.clearTimeout(toolNoticeTimer)
+    toolNoticeTimer = null
+  }
+})
 </script>
 
 <template>
@@ -142,6 +167,9 @@ onMounted(() => {
       <button class="tool-btn" :class="{ active: tencentTool === 'ellipse' }" type="button" @click="setTencentTool('ellipse')">椭圆</button>
       <span class="tool-hint">点击地图区域移动鼠标开始绘制电子围栏</span>
     </div>
+    <transition name="tool-toast">
+      <div v-if="toolNotification" class="tool-toast">{{ toolNotification }}</div>
+    </transition>
     <div id="qq-map" class="map">
       <div v-if="status !== 'ready'" class="placeholder">
         {{ status === 'missing-key' ? '缺少 Key' : '加载中或失败' }}
@@ -152,6 +180,7 @@ onMounted(() => {
 
 <style scoped>
 .panel {
+  position: relative;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   overflow: hidden;
@@ -204,6 +233,31 @@ onMounted(() => {
   margin-left: 8px;
   font-size: 12px;
   color: #6b7280;
+}
+
+.tool-toast {
+  position: absolute;
+  right: 12px;
+  top: 52px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(17, 24, 39, 0.92);
+  color: #fff;
+  font-size: 12px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.2);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.tool-toast-enter-active,
+.tool-toast-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.tool-toast-enter-from,
+.tool-toast-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
 .status {
