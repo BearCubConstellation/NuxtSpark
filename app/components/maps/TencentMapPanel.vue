@@ -21,12 +21,14 @@ const toolLabels: Record<typeof tencentTool.value, string> = {
   ellipse: '椭圆',
 }
 
+// 对 Key 做脱敏显示
 function maskKey(value?: string) {
   if (!value) return 'missing'
   const half = Math.max(1, Math.floor(value.length / 2))
   return `${value.slice(0, half)}...`
 }
 
+// 仅加载一次脚本
 function loadScriptOnce(id: string, src: string): Promise<void> {
   return new Promise((resolve, reject) => {
     if (document.getElementById(id)) {
@@ -45,6 +47,7 @@ function loadScriptOnce(id: string, src: string): Promise<void> {
   })
 }
 
+// 等待全局对象可用
 function waitForGlobal(check: () => boolean, timeoutMs = 8000): Promise<void> {
   return new Promise((resolve, reject) => {
     const start = Date.now()
@@ -62,6 +65,7 @@ function waitForGlobal(check: () => boolean, timeoutMs = 8000): Promise<void> {
   })
 }
 
+// 切换腾讯绘制工具
 function setTencentTool(id: typeof tencentTool.value) { // 切换腾讯绘制工具
   tencentTool.value = id // 更新当前选中工具
   tencentEditor?.setActiveOverlay?.(id) // 通知编辑器切换激活图层
@@ -74,6 +78,7 @@ function setTencentTool(id: typeof tencentTool.value) { // 切换腾讯绘制工
   }, 1600)
 }
 
+// 初始化腾讯地图与绘制工具
 async function initTencent() {
   const key = tencentKey.value
   console.info(`[map][tencent] key: ${maskKey(key)}`)
@@ -119,6 +124,7 @@ async function initTencent() {
       snappable: true,
     })
 
+    // 处理绘制完成后的数据输出
     tencentEditor.on('draw_complete', (geometry: any) => {
       const id = geometry.id
       const activeId = tencentEditor?.getActiveOverlay?.().id
@@ -140,10 +146,12 @@ async function initTencent() {
   }
 }
 
+// 组件挂载后初始化地图
 onMounted(() => {
   void initTencent()
 })
 
+// 组件卸载前清理定时器
 onBeforeUnmount(() => {
   if (toolNoticeTimer) {
     window.clearTimeout(toolNoticeTimer)
