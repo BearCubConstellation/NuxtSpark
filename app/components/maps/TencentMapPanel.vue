@@ -17,6 +17,9 @@ const toolNotification = ref<string | null>(null)
 let toolNoticeTimer: number | null = null
 const drawOutput = ref<string>('')
 const editorMode = ref<any>(null)
+const isEditorInteract = computed(
+  () => editorMode.value === tencentSdk?.tools?.constants?.EDITOR_ACTION?.INTERACT,
+)
 
 const toolLabels: Record<typeof tencentTool.value, string> = {
   marker: '点',
@@ -213,10 +216,10 @@ onBeforeUnmount(() => {
     <div class="tool-bar">
       <!-- <button class="tool-btn" :class="{ active: tencentTool === 'marker' }" type="button" @click="setTencentTool('marker')">点</button>
       <button class="tool-btn" :class="{ active: tencentTool === 'polyline' }" type="button" @click="setTencentTool('polyline')">线</button> -->
-      <button class="tool-btn" :class="{ active: tencentTool === 'polygon' }" type="button" @click="setTencentTool('polygon')">多边形</button>
-      <button class="tool-btn" :class="{ active: tencentTool === 'circle' }" type="button" @click="setTencentTool('circle')">圆</button>
-      <button class="tool-btn" :class="{ active: tencentTool === 'rectangle' }" type="button" @click="setTencentTool('rectangle')">矩形</button>
-      <button class="tool-btn" :class="{ active: tencentTool === 'ellipse' }" type="button" @click="setTencentTool('ellipse')">椭圆</button>
+      <button class="tool-btn" :class="{ active: tencentTool === 'polygon' }" :disabled="isEditorInteract" type="button" @click="setTencentTool('polygon')">多边形</button>
+      <button class="tool-btn" :class="{ active: tencentTool === 'circle' }" :disabled="isEditorInteract" type="button" @click="setTencentTool('circle')">圆</button>
+      <button class="tool-btn" :class="{ active: tencentTool === 'rectangle' }" :disabled="isEditorInteract" type="button" @click="setTencentTool('rectangle')">矩形</button>
+      <button class="tool-btn" :class="{ active: tencentTool === 'ellipse' }" :disabled="isEditorInteract" type="button" @click="setTencentTool('ellipse')">椭圆</button>
       <button class="tool-btn" type="button" @click="toggleEditorMode">
         编辑器模式：{{ editorMode === tencentSdk?.tools?.constants?.EDITOR_ACTION?.DRAW ? '绘制' : '交互' }}
       </button>
@@ -278,6 +281,11 @@ onBeforeUnmount(() => {
   padding: 4px 8px;
   font-size: 12px;
   cursor: pointer;
+}
+
+.tool-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .tool-btn.active {
