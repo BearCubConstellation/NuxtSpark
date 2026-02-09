@@ -2,6 +2,8 @@
 const config = useRuntimeConfig()
 
 const status = ref<'idle' | 'loading' | 'ready' | 'error' | 'missing-key'>('idle')
+
+// 默认地图初始化中心点
 const defaultCenter = { lng: 116.404, lat: 39.915 } // Beijing
 
 const tencentKey = computed(() => config.public.tencentMapKey as string | undefined)
@@ -11,6 +13,7 @@ let tencentEditor: any = null
 let tencentOverlays: Record<string, any> | null = null
 const toolNotification = ref<string | null>(null)
 let toolNoticeTimer: number | null = null
+const drawOutput = ref<string>('')
 
 const toolLabels: Record<typeof tencentTool.value, string> = {
   marker: '点',
@@ -19,6 +22,58 @@ const toolLabels: Record<typeof tencentTool.value, string> = {
   circle: '圆',
   rectangle: '矩形',
   ellipse: '椭圆',
+}
+
+// 初始化几何图形编辑器与绘制工具
+function initTencentDrawTools(TMap: any, map: any) {
+  const marker = new TMap.MultiMarker({ map })
+  const polyline = new TMap.MultiPolyline({ map })
+  const polygon = new TMap.MultiPolygon({ map })
+  const circle = new TMap.MultiCircle({ map })
+  const rectangle = new TMap.MultiRectangle({ map })
+  const ellipse = new TMap.MultiEllipse({ map })
+  tencentOverlays = { marker, polyline, polygon, circle, rectangle, ellipse }
+
+  tencentEditor = new TMap.tools.GeometryEditor({
+    map,
+    // 用于编辑的几何图层
+    overlayList: [
+      { overlay: marker, id: 'marker' },
+      { overlay: polyline, id: 'polyline' },
+      { overlay: polygon, id: 'polygon' },
+      { overlay: circle, id: 'circle' },
+      { overlay: rectangle, id: 'rectangle' },
+      { overlay: ellipse, id: 'ellipse' },
+    ],
+    // 编辑器的操作状态（DRAW绘制模式、INTERACT交互模式）
+    actionMode: TMap.tools.constants.EDITOR_ACTION.DRAW,
+    activeOverlayId: tencentTool.value,
+		selectable: true, // 开启点选功能
+    snappable: true,
+  })
+
+  // 处理绘制完成后的数据输出
+  tencentEditor.on('draw_complete', (geometry: any) => {
+    const id = geometry.id
+    const activeId = tencentEditor?.getActiveOverlay?.().id as typeof tencentTool.value | undefined
+    if (!activeId || !tencentOverlays) return
+
+    const overlay = tencentOverlays[activeId]
+    const selected = overlay?.geometries?.find((item: any) => item.id === id)
+    if (!selected) return
+
+    const output = {
+      type: activeId,
+      id,
+      paths: selected.paths,
+      center: selected.center,
+      radius: selected.radius,
+      bounds: selected.bounds,
+      raw: selected,
+    }
+    console.log('[tencent][draw_complete] data:', output)
+    drawOutput.value = JSON.stringify(output, null, 2)
+  })
 }
 
 // 对 Key 做脱敏显示
@@ -101,42 +156,7 @@ async function initTencent() {
       pitch: 35,
     })
 
-    const marker = new TMap.MultiMarker({ map })
-    const polyline = new TMap.MultiPolyline({ map })
-    const polygon = new TMap.MultiPolygon({ map })
-    const circle = new TMap.MultiCircle({ map })
-    const rectangle = new TMap.MultiRectangle({ map })
-    const ellipse = new TMap.MultiEllipse({ map })
-    tencentOverlays = { marker, polyline, polygon, circle, rectangle, ellipse }
-
-    tencentEditor = new TMap.tools.GeometryEditor({
-      map,
-      overlayList: [
-        { overlay: marker, id: 'marker' },
-        { overlay: polyline, id: 'polyline' },
-        { overlay: polygon, id: 'polygon' },
-        { overlay: circle, id: 'circle' },
-        { overlay: rectangle, id: 'rectangle' },
-        { overlay: ellipse, id: 'ellipse' },
-      ],
-      actionMode: TMap.tools.constants.EDITOR_ACTION.DRAW,
-      activeOverlayId: tencentTool.value,
-      snappable: true,
-    })
-
-    // 处理绘制完成后的数据输出
-    tencentEditor.on('draw_complete', (geometry: any) => {
-      const id = geometry.id
-      const activeId = tencentEditor?.getActiveOverlay?.().id
-      if (activeId === 'rectangle' && tencentOverlays?.rectangle) {
-        const geo = tencentOverlays.rectangle.geometries.filter((item: any) => item.id === id)
-        console.log('[tencent][rectangle] paths:', geo[0]?.paths)
-      }
-      if (activeId === 'polygon' && tencentOverlays?.polygon) {
-        const geo = tencentOverlays.polygon.geometries.filter((item: any) => item.id === id)
-        console.log('[tencent][polygon] paths:', geo[0]?.paths)
-      }
-    })
+    initTencentDrawTools(TMap, map)
 
     status.value = 'ready'
     console.info('[map][tencent] ready')
@@ -182,6 +202,10 @@ onBeforeUnmount(() => {
       <div v-if="status !== 'ready'" class="placeholder">
         {{ status === 'missing-key' ? '缺少 Key' : '加载中或失败' }}
       </div>
+    </div>
+    <div class="draw-output">
+      <div class="draw-output-title">绘制输出</div>
+      <pre class="draw-output-body">{{ drawOutput || '暂无绘制数据' }}</pre>
     </div>
   </section>
 </template>
@@ -276,6 +300,26 @@ onBeforeUnmount(() => {
 .map {
   position: relative;
   height: 360px;
+}
+
+.draw-output {
+  border-top: 1px solid #f0f2f5;
+  padding: 10px 12px;
+  background: #fcfcfd;
+}
+
+.draw-output-title {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+.draw-output-body {
+  margin: 0;
+  font-size: 12px;
+  color: #111827;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 .placeholder {
