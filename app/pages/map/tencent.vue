@@ -6,6 +6,10 @@ definePageMeta({
   nav: true,
   order: 4,
 })
+
+function handleMapClick(payload: { lat: number; lng: number }) {
+  console.info('地图组件返回点击坐标：', payload)
+}
 </script>
 
 <template>
@@ -23,7 +27,7 @@ definePageMeta({
       </aside>
       <div class="right-pane">
         <ClientOnly>
-          <TencentMapPanel />
+          <TencentMapPanel @map-click="handleMapClick" />
         </ClientOnly>
       </div>
     </section>

@@ -30,6 +30,10 @@ const editorMode = ref<any>(null)
 // 地图当前是否为 3D 模式
 const isMap3D = ref(false)
 
+const emit = defineEmits<{
+  (e: 'map-click', payload: { lat: number; lng: number }): void
+}>()
+
 // 当前编辑器是否处于交互模式
 const isEditorInteract = computed(
   () => editorMode.value === tencentSdk?.tools?.constants?.EDITOR_ACTION?.INTERACT,
@@ -293,7 +297,7 @@ async function initTencent() {
     tencentMap.on("click",function(evt: any){
         var lat = evt.latLng.getLat().toFixed(6);
         var lng = evt.latLng.getLng().toFixed(6);
-        console.log('坐标：' + lat + "," + lng)
+        emit('map-click', { lat: Number(lat), lng: Number(lng) })
     })
 
     status.value = 'ready'
