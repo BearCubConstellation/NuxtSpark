@@ -29,6 +29,10 @@ const drawOutput = ref<string>('')
 const editorMode = ref<any>(null)
 // 地图当前是否为 3D 模式
 const isMap3D = ref(false)
+// 地图操作模式：选点 / 绘制
+const mapMode = ref<'pick' | 'draw'>('draw')
+// 是否展开按钮区域
+const isToolPanelOpen = ref(true)
 
 const emit = defineEmits<{
   (e: 'map-click', payload: { lat: number; lng: number }): void
@@ -38,6 +42,8 @@ const emit = defineEmits<{
 const isEditorInteract = computed(
   () => editorMode.value === tencentSdk?.tools?.constants?.EDITOR_ACTION?.INTERACT,
 )
+
+const isDrawMode = computed(() => mapMode.value === 'draw')
 
 // 绘制工具显示文本
 const toolLabels: Record<TencentTool, string> = {
@@ -189,6 +195,7 @@ function waitForGlobal(check: () => boolean, timeoutMs = 8000): Promise<void> {
 
 // 切换腾讯绘制工具
 function setTencentTool(id: TencentTool) { // 切换腾讯绘制工具
+  if (!isDrawMode.value) return
   // 更新当前工具并同步到编辑器
   tencentTool.value = id // 更新当前选中工具
   tencentEditor?.setActiveOverlay?.(id) // 通知编辑器切换激活图层
@@ -219,6 +226,20 @@ function toggleEditorMode() {
   if (!actions) return
   const nextMode = editorMode.value === actions.DRAW ? actions.INTERACT : actions.DRAW
   setEditorModel(nextMode)
+}
+
+// 根据地图模式同步编辑器行为
+function applyMapMode() {
+  if (!tencentSdk) return
+  const actions = tencentSdk?.tools?.constants?.EDITOR_ACTION
+  if (!actions) return
+  if (mapMode.value === 'draw') {
+    setEditorModel(actions.DRAW)
+    tencentEditor?.setActiveOverlay?.(tencentTool.value)
+  } else {
+    setEditorModel(actions.INTERACT)
+    tencentEditor?.setActiveOverlay?.(null)
+  }
 }
 
 // 切换地图 2D/3D 显示
@@ -292,6 +313,7 @@ async function initTencent() {
     initTencentDrawTools(TMap, tencentMap)
 
     editorMode.value = tencentEditor?.getActionMode?.() ?? TMap.tools.constants.EDITOR_ACTION.DRAW
+    applyMapMode()
 
     //绑定点击事件
     tencentMap.on("click",function(evt: any){
@@ -312,6 +334,10 @@ async function initTencent() {
 onMounted(() => {
   // 首次挂载时初始化
   void initTencent()
+})
+
+watch(mapMode, () => {
+  applyMapMode()
 })
 
 // 组件卸载前清理定时器
@@ -339,22 +365,65 @@ onBeforeUnmount(() => {
   <section class="panel">
     <header class="panel-header">
       <h2>腾讯位置服务</h2>
-      <span class="status">{{ status }}</span>
+      <div class="header-actions">
+        <button
+          v-if="!isToolPanelOpen"
+          class="tool-btn"
+          type="button"
+          @click="isToolPanelOpen = !isToolPanelOpen"
+        >
+          展开选项
+        </button>
+        <button class="tool-btn" type="button" @click="toggleMapDimension">
+          地图视角：{{ isMap3D ? '3D' : '2D' }}
+        </button>
+        <span class="status">{{ status }}</span>
+      </div>
     </header>
-    <div class="tool-bar">
-      <!-- <button class="tool-btn" :class="{ active: tencentTool === 'marker' }" type="button" @click="setTencentTool('marker')">点</button>
-      <button class="tool-btn" :class="{ active: tencentTool === 'polyline' }" type="button" @click="setTencentTool('polyline')">线</button> -->
-      <button class="tool-btn" :class="{ active: tencentTool === 'polygon' }" :disabled="isEditorInteract" type="button" @click="setTencentTool('polygon')">多边形</button>
-      <button class="tool-btn" :class="{ active: tencentTool === 'circle' }" :disabled="isEditorInteract" type="button" @click="setTencentTool('circle')">圆</button>
-      <button class="tool-btn" :class="{ active: tencentTool === 'rectangle' }" :disabled="isEditorInteract" type="button" @click="setTencentTool('rectangle')">矩形</button>
-      <button class="tool-btn" :class="{ active: tencentTool === 'ellipse' }" :disabled="isEditorInteract" type="button" @click="setTencentTool('ellipse')">椭圆</button>
-      <button class="tool-btn" type="button" @click="toggleEditorMode">
-        编辑器模式：{{ editorMode === tencentSdk?.tools?.constants?.EDITOR_ACTION?.DRAW ? '绘制' : '交互' }}
-      </button>
-      <button class="tool-btn" type="button" @click="toggleMapDimension">
-        地图模式：{{ isMap3D ? '3D' : '2D' }}
-      </button>
-      <span class="tool-hint">点击地图区域移动鼠标开始绘制电子围栏</span>
+    <div v-if="isToolPanelOpen" class="tool-bar">
+      <div class="tool-row">
+        <span class="tool-label">地图模式：</span>
+        <button
+          class="tool-btn"
+          :class="{ active: mapMode === 'pick' }"
+          type="button"
+          @click="mapMode = 'pick'"
+        >
+          选点
+        </button>
+        <button
+          class="tool-btn"
+          :class="{ active: mapMode === 'draw' }"
+          type="button"
+          @click="mapMode = 'draw'"
+        >
+          绘制
+        </button>
+        <!-- 地图视角按钮移动到标题行 -->
+      </div>
+
+      <div v-if="isToolPanelOpen" class="tool-row">
+        <!-- 选点模式暂未定义展示内容，后续再补充 -->
+        <template v-if="isDrawMode">
+          <!-- <button class="tool-btn" :class="{ active: tencentTool === 'marker' }" type="button" @click="setTencentTool('marker')">点</button>
+          <button class="tool-btn" :class="{ active: tencentTool === 'polyline' }" type="button" @click="setTencentTool('polyline')">线</button> -->
+          <button class="tool-btn" :class="{ active: tencentTool === 'polygon' }" :disabled="isEditorInteract" type="button" @click="setTencentTool('polygon')">多边形</button>
+          <button class="tool-btn" :class="{ active: tencentTool === 'circle' }" :disabled="isEditorInteract" type="button" @click="setTencentTool('circle')">圆</button>
+          <button class="tool-btn" :class="{ active: tencentTool === 'rectangle' }" :disabled="isEditorInteract" type="button" @click="setTencentTool('rectangle')">矩形</button>
+          <button class="tool-btn" :class="{ active: tencentTool === 'ellipse' }" :disabled="isEditorInteract" type="button" @click="setTencentTool('ellipse')">椭圆</button>
+          <button class="tool-btn" type="button" @click="toggleEditorMode">
+            编辑器模式：{{ editorMode === tencentSdk?.tools?.constants?.EDITOR_ACTION?.DRAW ? '绘制' : '交互' }}
+          </button>
+        </template>
+      </div>
+
+      <span v-if="isDrawMode" class="tool-hint">点击地图区域移动鼠标开始绘制电子围栏</span>
+
+      <div class="tool-footer">
+        <button class="tool-btn tool-toggle" type="button" @click="isToolPanelOpen = !isToolPanelOpen">
+          {{ isToolPanelOpen ? '收起选项' : '展开选项' }}
+        </button>
+      </div>
     </div>
     <transition name="tool-toast">
       <div v-if="toolNotification" class="tool-toast">{{ toolNotification }}</div>
@@ -394,14 +463,32 @@ onBeforeUnmount(() => {
   font-size: 16px;
 }
 
+.header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .tool-bar {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
   padding: 8px 12px;
   border-bottom: 1px solid #f0f2f5;
   background: #fff;
+}
+
+.tool-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
+}
+
+.tool-label {
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .tool-btn {
@@ -428,9 +515,22 @@ onBeforeUnmount(() => {
 .tool-hint {
   display: inline-flex;
   align-items: center;
-  margin-left: 8px;
   font-size: 12px;
   color: #6b7280;
+}
+
+.tool-footer {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid #f0f2f5;
+  padding-top: 8px;
+  margin-top: 2px;
+}
+
+.tool-toggle {
+  border-radius: 999px;
+  padding: 4px 14px;
 }
 
 .tool-toast {
