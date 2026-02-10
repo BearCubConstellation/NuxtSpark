@@ -28,7 +28,7 @@ const drawOutput = ref<string>('')
 // 编辑器当前模式
 const editorMode = ref<any>(null)
 // 地图当前是否为 3D 模式
-const isMap3D = ref(true)
+const isMap3D = ref(false)
 
 // 当前编辑器是否处于交互模式
 const isEditorInteract = computed(
@@ -220,9 +220,29 @@ function toggleEditorMode() {
 // 切换地图 2D/3D 显示
 function toggleMapDimension() {
   if (!tencentMap) return
+  console.info('[tencent][map] toggle dimension start', { from: isMap3D.value ? '3D' : '2D' })
   isMap3D.value = !isMap3D.value
   tencentMap.setViewMode?.(isMap3D.value ? '3D' : '2D')
   tencentMap.setPitch?.(isMap3D.value ? 70 : 0)
+  // 回读实际模式，避免 UI 与地图状态不一致
+  syncMapDimensionState()
+  console.info('[tencent][map] toggle dimension end', { to: isMap3D.value ? '3D' : '2D' })
+}
+
+// 回读地图真实模式并同步 UI
+function syncMapDimensionState() {
+  if (!tencentMap) return
+  const viewMode = tencentMap.getViewMode?.()
+  console.info('[tencent][map] sync viewMode', { viewMode })
+  if (viewMode === '3D' || viewMode === '2D') {
+    isMap3D.value = viewMode === '3D'
+    return
+  }
+  const pitch = tencentMap.getPitch?.()
+  console.info('[tencent][map] sync pitch', { pitch })
+  if (typeof pitch === 'number') {
+    isMap3D.value = pitch > 0
+  }
 }
 
 // 初始化腾讯地图与绘制工具
@@ -259,8 +279,10 @@ async function initTencent() {
       }
     })
     tencentMap = map
+    console.info('[tencent][map] created', { isMap3D: isMap3D.value })
     tencentMap.setViewMode?.(isMap3D.value ? '3D' : '2D')
     tencentMap.setPitch?.(isMap3D.value ? 70 : 0)
+    syncMapDimensionState()
 
     // 初始化绘制工具
     initTencentDrawTools(TMap, tencentMap)
