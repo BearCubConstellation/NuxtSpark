@@ -638,18 +638,21 @@ onBeforeUnmount(() => {
   font-size: 14px;
 }
 
+/* 由于 info window 是动态插入的，不能使用 scoped 样式 */
+</style>
+
+<style>
 /* 信息窗口主容器样式 */
 .map-info-window {
-    border: 1px solid #e5e5e5; /* 柔和边框代替红色 */
-    border-radius: 8px; /* 圆角 */
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1); /* 轻微阴影提升层次感 */
+    /* border: 1px solid #e5e5e5; */
+    /* border-radius: 8px; */
+    /* box-shadow: 0 2px 8px rgba(0,0,0,0.1); */
     display: flex;
     flex-direction: column;
     gap: 8px; /* 增大间距更舒适 */
-    padding: 12px; /* 合理内边距 */
+    padding: 2px; /* 合理内边距 */
     min-width: 280px; /* 适配按钮宽度 */
-    background: #fff; /* 白色背景 */
-    border:1px solid red;
+    /* background: #fff; */
 }
 
 /* 信息项样式 */
@@ -658,7 +661,6 @@ onBeforeUnmount(() => {
     color: #333;
     line-height: 1.5;
     padding: 0 4px;
-    border:1px solid red;
 }
 
 /* 坐标文本样式 */
@@ -666,7 +668,6 @@ onBeforeUnmount(() => {
     font-size: 12px;
     color: #666;
     padding: 0 4px;
-    border:1px solid red;
 }
 
 /* 按钮容器：横向排列 */
@@ -674,7 +675,6 @@ onBeforeUnmount(() => {
     display: flex;
     gap: 6px; /* 按钮间距 */
     margin-top: 4px;
-    border:1px solid red;
 }
 
 /* 通用按钮样式 */
