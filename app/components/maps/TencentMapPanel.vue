@@ -5,23 +5,37 @@ const status = ref<'idle' | 'loading' | 'ready' | 'error' | 'missing-key'>('idle
 
 // 默认地图初始化中心点
 const defaultCenter = { lng: 116.404, lat: 39.915 } // 北京
+// 腾讯地图 Key
+const tencentKey = computed(() => config.public.tencentMapKey as string | undefined)
+// 绘制工具类型
+type TencentTool = 'marker' | 'polyline' | 'polygon' | 'circle' | 'rectangle' | 'ellipse'
+// 当前选中的绘制工具
+const tencentTool = ref<TencentTool>('rectangle')
+// 腾讯地图 SDK 实例
+let tencentSdk: any = null
+// 地图实例
+let tencentMap: any = null
+// 几何编辑器实例
+let tencentEditor: any = null
+// 各类图形图层引用
+let tencentOverlays: Record<TencentTool, any> | null = null
+// 工具切换提示文案
+const toolNotification = ref<string | null>(null)
+// 工具提示定时器
+let toolNoticeTimer: number | null = null
+// 绘制结果输出
+const drawOutput = ref<string>('')
+// 编辑器当前模式
+const editorMode = ref<any>(null)
+// 地图当前是否为 3D 模式
+const isMap3D = ref(true)
 
-const tencentKey = computed(() => config.public.tencentMapKey as string | undefined) // 腾讯地图 Key
-
-type TencentTool = 'marker' | 'polyline' | 'polygon' | 'circle' | 'rectangle' | 'ellipse' // 绘制工具类型
-const tencentTool = ref<TencentTool>('rectangle') // 当前选中的绘制工具
-let tencentSdk: any = null // 腾讯地图 SDK 实例
-let tencentMap: any = null // 地图实例
-let tencentEditor: any = null // 几何编辑器实例
-let tencentOverlays: Record<TencentTool, any> | null = null // 各类图形图层引用
-const toolNotification = ref<string | null>(null) // 工具切换提示文案
-let toolNoticeTimer: number | null = null // 工具提示定时器
-const drawOutput = ref<string>('') // 绘制结果输出
-const editorMode = ref<any>(null) // 编辑器当前模式
+// 当前编辑器是否处于交互模式
 const isEditorInteract = computed(
   () => editorMode.value === tencentSdk?.tools?.constants?.EDITOR_ACTION?.INTERACT,
 )
 
+// 绘制工具显示文本
 const toolLabels: Record<TencentTool, string> = {
   marker: '点',
   polyline: '线',
@@ -84,6 +98,24 @@ function initTencentDrawTools(TMap: any, map: any) {
     console.log('[tencent][draw_complete] data:', output)
     drawOutput.value = JSON.stringify(output, null, 2)
   })
+}
+
+// 初始化天空盒
+function initSkyBox(TMap: any) {
+  // 基于当前系统时间选择白天/夜晚天空盒
+  const hour = new Date().getHours()
+  const isDayTime = hour >= 6 && hour < 18
+  const dayBox = {
+    src: 'https://mapapi.qq.com/web/lbs/javascriptGL/demo/img/skybox_day.png',
+    horizontal: TMap.constants.IMAGE_DISPLAY.REPEAT,
+    vertical: TMap.constants.IMAGE_DISPLAY.SCALE,
+  }
+  const nightBox = {
+    src: 'https://mapapi.qq.com/web/lbs/javascriptGL/demo/img/skybox_night.png',
+    horizontal: TMap.constants.IMAGE_DISPLAY.REPEAT,
+    vertical: TMap.constants.IMAGE_DISPLAY.SCALE,
+  }
+  return isDayTime ? [dayBox] : [nightBox]
 }
 
 // 对 Key 做脱敏显示
@@ -183,6 +215,14 @@ function toggleEditorMode() {
   setEditorModel(nextMode)
 }
 
+// 切换地图 2D/3D 显示
+function toggleMapDimension() {
+  if (!tencentMap) return
+  isMap3D.value = !isMap3D.value
+  tencentMap.setViewMode?.(isMap3D.value ? '3D' : '2D')
+  tencentMap.setPitch?.(isMap3D.value ? 70 : 0)
+}
+
 // 初始化腾讯地图与绘制工具
 async function initTencent() {
   // 初始化腾讯地图与绘制工具
@@ -203,16 +243,25 @@ async function initTencent() {
     const container = document.getElementById('qq-map')
     if (!container) throw new Error('qq-map container not found')
 
+    // 初始化天空盒
+    const skybox = initSkyBox(TMap)
+
     // 创建地图实例
     const map = new TMap.Map(container, {
       center: new TMap.LatLng(defaultCenter.lat, defaultCenter.lng),
-      zoom: 12,
-      pitch: 35,
+      zoom: 17, //设置地图缩放级别
+      pitch: 35, //设置俯仰角
+      rotation: 45, //设置地图旋转角度,
+      renderOptions: {
+          skyOptions: skybox,
+      }
     })
     tencentMap = map
+    tencentMap.setViewMode?.(isMap3D.value ? '3D' : '2D')
 
     // 初始化绘制工具
     initTencentDrawTools(TMap, map)
+
     editorMode.value = TMap.tools.constants.EDITOR_ACTION.DRAW
 
     status.value = 'ready'
@@ -265,6 +314,9 @@ onBeforeUnmount(() => {
       <button class="tool-btn" :class="{ active: tencentTool === 'ellipse' }" :disabled="isEditorInteract" type="button" @click="setTencentTool('ellipse')">椭圆</button>
       <button class="tool-btn" type="button" @click="toggleEditorMode">
         编辑器模式：{{ editorMode === tencentSdk?.tools?.constants?.EDITOR_ACTION?.DRAW ? '绘制' : '交互' }}
+      </button>
+      <button class="tool-btn" type="button" @click="toggleMapDimension">
+        地图模式：{{ isMap3D ? '3D' : '2D' }}
       </button>
       <span class="tool-hint">点击地图区域移动鼠标开始绘制电子围栏</span>
     </div>
