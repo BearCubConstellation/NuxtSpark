@@ -1,27 +1,28 @@
 ﻿<script setup lang="ts">
-const config = useRuntimeConfig()
+const config = useRuntimeConfig() // 运行时配置
 
-const status = ref<'idle' | 'loading' | 'ready' | 'error' | 'missing-key'>('idle')
+const status = ref<'idle' | 'loading' | 'ready' | 'error' | 'missing-key'>('idle') // 地图初始化状态
 
 // 默认地图初始化中心点
-const defaultCenter = { lng: 116.404, lat: 39.915 } // Beijing
+const defaultCenter = { lng: 116.404, lat: 39.915 } // 北京
 
-const tencentKey = computed(() => config.public.tencentMapKey as string | undefined)
+const tencentKey = computed(() => config.public.tencentMapKey as string | undefined) // 腾讯地图 Key
 
-const tencentTool = ref<'marker' | 'polyline' | 'polygon' | 'circle' | 'rectangle' | 'ellipse'>('rectangle') // 当前选中的绘制工具
-let tencentSdk: any = null
-let tencentMap: any = null
-let tencentEditor: any = null
-let tencentOverlays: Record<string, any> | null = null
-const toolNotification = ref<string | null>(null)
-let toolNoticeTimer: number | null = null
-const drawOutput = ref<string>('')
-const editorMode = ref<any>(null)
+type TencentTool = 'marker' | 'polyline' | 'polygon' | 'circle' | 'rectangle' | 'ellipse' // 绘制工具类型
+const tencentTool = ref<TencentTool>('rectangle') // 当前选中的绘制工具
+let tencentSdk: any = null // 腾讯地图 SDK 实例
+let tencentMap: any = null // 地图实例
+let tencentEditor: any = null // 几何编辑器实例
+let tencentOverlays: Record<TencentTool, any> | null = null // 各类图形图层引用
+const toolNotification = ref<string | null>(null) // 工具切换提示文案
+let toolNoticeTimer: number | null = null // 工具提示定时器
+const drawOutput = ref<string>('') // 绘制结果输出
+const editorMode = ref<any>(null) // 编辑器当前模式
 const isEditorInteract = computed(
   () => editorMode.value === tencentSdk?.tools?.constants?.EDITOR_ACTION?.INTERACT,
 )
 
-const toolLabels: Record<typeof tencentTool.value, string> = {
+const toolLabels: Record<TencentTool, string> = {
   marker: '点',
   polyline: '线',
   polygon: '多边形',
@@ -32,6 +33,7 @@ const toolLabels: Record<typeof tencentTool.value, string> = {
 
 // 初始化几何图形编辑器与绘制工具
 function initTencentDrawTools(TMap: any, map: any) {
+  // 创建各类几何图层并挂载到地图
   const marker = new TMap.MultiMarker({ map })
   const polyline = new TMap.MultiPolyline({ map })
   const polygon = new TMap.MultiPolygon({ map })
@@ -60,14 +62,16 @@ function initTencentDrawTools(TMap: any, map: any) {
 
   // 处理绘制完成后的数据输出
   tencentEditor.on('draw_complete', (geometry: any) => {
+    // 根据返回的几何图形 ID 找到对应的图层数据
     const id = geometry.id
-    const activeId = tencentEditor?.getActiveOverlay?.().id as typeof tencentTool.value | undefined
+    const activeId = tencentEditor?.getActiveOverlay?.().id as TencentTool | undefined
     if (!activeId || !tencentOverlays) return
 
     const overlay = tencentOverlays[activeId]
     const selected = overlay?.geometries?.find((item: any) => item.id === id)
     if (!selected) return
 
+    // 按图形类型组织输出数据
     const output = {
       type: activeId,
       id,
@@ -84,19 +88,35 @@ function initTencentDrawTools(TMap: any, map: any) {
 
 // 对 Key 做脱敏显示
 function maskKey(value?: string) {
+  // 只展示 Key 的前半部分
   if (!value) return 'missing'
   const half = Math.max(1, Math.floor(value.length / 2))
   return `${value.slice(0, half)}...`
 }
 
 // 仅加载一次脚本
+const scriptLoads = new Map<string, Promise<void>>()
 function loadScriptOnce(id: string, src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (document.getElementById(id)) {
-      console.info(`[map] script already loaded: ${id}`)
-      resolve()
+  // 复用相同脚本的加载 Promise，避免重复加载
+  const cached = scriptLoads.get(id)
+  if (cached) return cached
+  const promise = new Promise<void>((resolve, reject) => {
+    const existing = document.getElementById(id) as HTMLScriptElement | null
+    if (existing) {
+      // 已存在脚本时，优先等待其 load/error 事件
+      if ((window as any).TMap) {
+        resolve()
+        return
+      }
+      existing.addEventListener('load', () => resolve(), { once: true })
+      existing.addEventListener(
+        'error',
+        () => reject(new Error(`Failed to load ${existing.src || src}`)),
+        { once: true },
+      )
       return
     }
+    // 动态注入脚本
     const script = document.createElement('script')
     script.id = id
     script.src = src
@@ -106,10 +126,13 @@ function loadScriptOnce(id: string, src: string): Promise<void> {
     script.onerror = () => reject(new Error(`Failed to load ${src}`))
     document.head.appendChild(script)
   })
+  scriptLoads.set(id, promise)
+  return promise
 }
 
 // 等待全局对象可用
 function waitForGlobal(check: () => boolean, timeoutMs = 8000): Promise<void> {
+  // 轮询等待全局对象可用，超时则抛错
   return new Promise((resolve, reject) => {
     const start = Date.now()
     const timer = window.setInterval(() => {
@@ -127,7 +150,8 @@ function waitForGlobal(check: () => boolean, timeoutMs = 8000): Promise<void> {
 }
 
 // 切换腾讯绘制工具
-function setTencentTool(id: typeof tencentTool.value) { // 切换腾讯绘制工具
+function setTencentTool(id: TencentTool) { // 切换腾讯绘制工具
+  // 更新当前工具并同步到编辑器
   tencentTool.value = id // 更新当前选中工具
   tencentEditor?.setActiveOverlay?.(id) // 通知编辑器切换激活图层
   const label = toolLabels[id] ?? id
@@ -141,15 +165,17 @@ function setTencentTool(id: typeof tencentTool.value) { // 切换腾讯绘制工
 
 // 设置编辑器模式（DRAW绘制模式、INTERACT交互模式）
 function setEditorModel(mode: any) {
+  // 设置编辑器模式并同步状态
   if (!tencentEditor || !tencentSdk) return
   const actions = tencentSdk?.tools?.constants?.EDITOR_ACTION
   if (!actions || !tencentEditor.setActionMode) return
   tencentEditor.setActionMode(mode)
-  editorMode.value = mode
+  editorMode.value = tencentEditor?.getActionMode?.() ?? mode
 }
 
 // 切换编辑器模式
 function toggleEditorMode() {
+  // 在 DRAW 与 INTERACT 之间切换
   if (!tencentSdk) return
   const actions = tencentSdk?.tools?.constants?.EDITOR_ACTION
   if (!actions) return
@@ -159,6 +185,7 @@ function toggleEditorMode() {
 
 // 初始化腾讯地图与绘制工具
 async function initTencent() {
+  // 初始化腾讯地图与绘制工具
   const key = tencentKey.value
   console.info(`[map][tencent] key: ${maskKey(key)}`)
   if (!key) {
@@ -167,6 +194,7 @@ async function initTencent() {
   }
   status.value = 'loading'
   try {
+    // 加载 SDK 并等待全局对象就绪
     await loadScriptOnce('tencent-map-sdk', `https://map.qq.com/api/gljs?v=1.exp&key=${key}&libraries=tools`)
     await waitForGlobal(() => Boolean((window as any).TMap))
     const TMap = (window as any).TMap
@@ -175,6 +203,7 @@ async function initTencent() {
     const container = document.getElementById('qq-map')
     if (!container) throw new Error('qq-map container not found')
 
+    // 创建地图实例
     const map = new TMap.Map(container, {
       center: new TMap.LatLng(defaultCenter.lat, defaultCenter.lng),
       zoom: 12,
@@ -182,24 +211,38 @@ async function initTencent() {
     })
     tencentMap = map
 
+    // 初始化绘制工具
     initTencentDrawTools(TMap, map)
     editorMode.value = TMap.tools.constants.EDITOR_ACTION.DRAW
 
     status.value = 'ready'
     console.info('[map][tencent] ready')
-  } catch {
+  } catch (err) {
     status.value = 'error'
-    console.warn('[map][tencent] init failed')
+    console.warn('[map][tencent] init failed', err)
   }
 }
 
 // 组件挂载后初始化地图
 onMounted(() => {
+  // 首次挂载时初始化
   void initTencent()
 })
 
 // 组件卸载前清理定时器
 onBeforeUnmount(() => {
+  // 卸载时释放事件与对象引用
+  if (tencentEditor?.off) {
+    tencentEditor.off('draw_complete')
+  }
+  tencentEditor?.destroy?.()
+  tencentEditor = null
+  tencentMap?.destroy?.()
+  tencentMap = null
+  if (tencentOverlays) {
+    Object.values(tencentOverlays).forEach((overlay: any) => overlay?.setMap?.(null))
+    tencentOverlays = null
+  }
   if (toolNoticeTimer) {
     window.clearTimeout(toolNoticeTimer)
     toolNoticeTimer = null
