@@ -270,6 +270,41 @@ function syncMapDimensionState() {
   }
 }
 
+// 打开窗体
+function openInfoWindow(content: string, position: any) {
+  if (!tencentSdk || !tencentMap) return
+  const info = new tencentSdk.InfoWindow({
+    map: tencentMap,
+    content,
+    position,
+  })
+  info.open()
+}
+
+// 地图点击回调
+function clickCallback(evt: any){
+  const lat = evt.latLng.getLat().toFixed(6);
+  const lng = evt.latLng.getLng().toFixed(6);
+  emit('map-click', { lat: Number(lat), lng: Number(lng) })
+  // 打开窗体展示Poi
+  // 获取click事件返回的poi信息
+  let poi = evt.poi;
+  if (poi) {
+    const content = `
+      <div class="map-info-window">
+          <div class="info-item">${poi.name}</div>
+          <div class="coord-item">${lat}, ${lng}</div>
+          <div class="btn-group">
+              <button class="map-btn btn-start" id="btnStart">设为起点</button>
+              <button class="map-btn btn-way" id="btnWay">设为途经点</button>
+              <button class="map-btn btn-end" id="btnEnd">设为终点</button>
+          </div>
+      </div>
+    `;
+    openInfoWindow(content, evt.latLng)
+  }
+}
+
 // 初始化腾讯地图与绘制工具
 async function initTencent() {
   // 初始化腾讯地图与绘制工具
@@ -303,6 +338,7 @@ async function initTencent() {
           skyOptions: skybox,
       }
     })
+
     tencentMap = map
     console.info('[tencent][map] created', { isMap3D: isMap3D.value })
     tencentMap.setViewMode?.(isMap3D.value ? '3D' : '2D')
@@ -312,15 +348,13 @@ async function initTencent() {
     // 初始化绘制工具
     initTencentDrawTools(TMap, tencentMap)
 
+    // 初始化POI
+
     editorMode.value = tencentEditor?.getActionMode?.() ?? TMap.tools.constants.EDITOR_ACTION.DRAW
     applyMapMode()
 
-    //绑定点击事件
-    tencentMap.on("click",function(evt: any){
-        var lat = evt.latLng.getLat().toFixed(6);
-        var lng = evt.latLng.getLng().toFixed(6);
-        emit('map-click', { lat: Number(lat), lng: Number(lng) })
-    })
+    //绑定点击事件到回调函数
+    tencentMap.on("click", clickCallback)
 
     status.value = 'ready'
     console.info('[map][tencent] ready')
@@ -602,5 +636,85 @@ onBeforeUnmount(() => {
     #f1f5f9 20px
   );
   font-size: 14px;
+}
+
+/* 信息窗口主容器样式 */
+.map-info-window {
+    border: 1px solid #e5e5e5; /* 柔和边框代替红色 */
+    border-radius: 8px; /* 圆角 */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1); /* 轻微阴影提升层次感 */
+    display: flex;
+    flex-direction: column;
+    gap: 8px; /* 增大间距更舒适 */
+    padding: 12px; /* 合理内边距 */
+    min-width: 280px; /* 适配按钮宽度 */
+    background: #fff; /* 白色背景 */
+    border:1px solid red;
+}
+
+/* 信息项样式 */
+.map-info-window .info-item {
+    font-size: 14px;
+    color: #333;
+    line-height: 1.5;
+    padding: 0 4px;
+    border:1px solid red;
+}
+
+/* 坐标文本样式 */
+.map-info-window .coord-item {
+    font-size: 12px;
+    color: #666;
+    padding: 0 4px;
+    border:1px solid red;
+}
+
+/* 按钮容器：横向排列 */
+.map-info-window .btn-group {
+    display: flex;
+    gap: 6px; /* 按钮间距 */
+    margin-top: 4px;
+    border:1px solid red;
+}
+
+/* 通用按钮样式 */
+.map-info-window .map-btn {
+    flex: 1; /* 按钮等分宽度 */
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 4px;
+    border: none;
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer; /* 鼠标指针 */
+    transition: background 0.2s; /* 过渡动画 */
+}
+
+/* 不同按钮区分色 */
+.map-info-window .btn-start {
+    background: #409eff; /* 起点-蓝色 */
+}
+.map-info-window .btn-way {
+    background: #67c23a; /* 途经点-绿色 */
+}
+.map-info-window .btn-end {
+    background: #f56c6c; /* 终点-红色 */
+}
+
+/* 按钮hover效果 */
+.map-info-window .btn-start:hover {
+    background: #66b1ff;
+}
+.map-info-window .btn-way:hover {
+    background: #85ce61;
+}
+.map-info-window .btn-end:hover {
+    background: #f78989;
+}
+
+/* 按钮禁用/点击态（可选） */
+.map-info-window .map-btn:active {
+    opacity: 0.8;
 }
 </style>
