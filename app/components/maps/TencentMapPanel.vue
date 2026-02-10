@@ -115,7 +115,9 @@ function initSkyBox(TMap: any) {
     horizontal: TMap.constants.IMAGE_DISPLAY.REPEAT,
     vertical: TMap.constants.IMAGE_DISPLAY.SCALE,
   }
-  return isDayTime ? [dayBox] : [nightBox]
+  return {
+    skybox: isDayTime ? [dayBox] : [nightBox],
+  }
 }
 
 // 对 Key 做脱敏显示
@@ -250,7 +252,7 @@ async function initTencent() {
     const map = new TMap.Map(container, {
       center: new TMap.LatLng(defaultCenter.lat, defaultCenter.lng),
       zoom: 17, //设置地图缩放级别
-      pitch: 35, //设置俯仰角
+      pitch: isMap3D.value ? 70 : 0, //设置俯仰角
       rotation: 45, //设置地图旋转角度,
       renderOptions: {
           skyOptions: skybox,
@@ -258,11 +260,19 @@ async function initTencent() {
     })
     tencentMap = map
     tencentMap.setViewMode?.(isMap3D.value ? '3D' : '2D')
+    tencentMap.setPitch?.(isMap3D.value ? 70 : 0)
 
     // 初始化绘制工具
-    initTencentDrawTools(TMap, map)
+    initTencentDrawTools(TMap, tencentMap)
 
-    editorMode.value = TMap.tools.constants.EDITOR_ACTION.DRAW
+    editorMode.value = tencentEditor?.getActionMode?.() ?? TMap.tools.constants.EDITOR_ACTION.DRAW
+
+    //绑定点击事件
+    tencentMap.on("click",function(evt: any){
+        var lat = evt.latLng.getLat().toFixed(6);
+        var lng = evt.latLng.getLng().toFixed(6);
+        console.log('坐标：' + lat + "," + lng)
+    })
 
     status.value = 'ready'
     console.info('[map][tencent] ready')
