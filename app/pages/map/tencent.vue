@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import TencentMapPanel from '~/components/maps/TencentMapPanel.vue'
 import type { RouteRenderDTO } from '~/../documents/map-api.types_v1'
-import { mockRouteRender } from '~/mocks/route-render.mock'
+import { mockRouteRenderList } from '~/mocks/route-render.mock'
 
 definePageMeta({
   title: '腾讯地图',
@@ -14,31 +14,88 @@ function handleMapClick(payload: { lat: number; lng: number; }) {
   console.info('地图组件返回点击坐标：', payload)
 }
 
+const routeList = ref<RouteRenderDTO[]>([])
+const expandedRouteIds = ref<Set<string>>(new Set())
+
 // 模拟获取路线渲染数据的函数
 async function fetchRouteRenderMock() {
-  const data: RouteRenderDTO = mockRouteRender
+  const data = mockRouteRenderList[0]
+  if (!data) return null
   await new Promise((resolve) => setTimeout(resolve, 300))
   console.info('[mock][route-render]', data)
+  routeList.value = mockRouteRenderList
   return data
+}
+
+function toggleRouteDetail(routeId: string) {
+  const next = new Set(expandedRouteIds.value)
+  if (next.has(routeId)) {
+    next.delete(routeId)
+  } else {
+    next.add(routeId)
+  }
+  expandedRouteIds.value = next
+}
+
+function formatKm(meter?: number) {
+  if (typeof meter !== 'number' || Number.isNaN(meter)) return '--'
+  return (meter / 1000).toFixed(2)
 }
 </script>
 
 <template>
   <div class="page">
-    <header class="page-header">
+    <!-- <header class="page-header">
       <h1>腾讯地图（位置服务）</h1>
       <p>此页面用来测试腾讯位置服务的绘制与交互能力。</p>
-    </header>
-    <div class="page-actions">
-      <button class="action-btn" type="button" @click="fetchRouteRenderMock">
-        获取线路
-      </button>
-    </div>
+    </header> -->
     <section class="page-content">
       <aside class="left-pane">
         <div class="left-card">
           <h2>左侧面板</h2>
-          <p>这里预留给筛选、列表或说明等内容。</p>
+          <p>线路列表（默认展示 ID / 名称 / 总理论里程）。</p>
+          <div class="route-list">
+            <div v-if="routeList.length === 0" class="route-empty">暂无数据</div>
+            <div v-if="routeList.length === 0" class="page-actions">
+              <button class="action-btn" type="button" @click="fetchRouteRenderMock">
+                获取线路
+              </button>
+            </div>
+            <div v-for="item in routeList" :key="item.route.id" class="route-item">
+              <div class="route-main">
+                <div class="route-info">
+                  <div class="route-id">ID：{{ item.route.id }}</div>
+                  <div class="route-name">名称：{{ item.route.name }}</div>
+                  <div class="route-distance">
+                    总理论里程：{{ formatKm(item.route.totalTheoryDistanceMeter) }} km
+                  </div>
+                </div>
+                <button
+                  class="detail-btn"
+                  type="button"
+                  @click="toggleRouteDetail(item.route.id)"
+                >
+                  {{ expandedRouteIds.has(item.route.id) ? '收起详情' : '展开详情' }}
+                </button>
+              </div>
+              <div v-if="expandedRouteIds.has(item.route.id)" class="route-detail">
+                <div class="detail-title">点位信息</div>
+                <div v-if="item.route.points.length === 0" class="detail-empty">
+                  暂无点位
+                </div>
+                <div
+                  v-for="point in item.route.points"
+                  :key="point.id"
+                  class="point-row"
+                >
+                  <div class="point-name">{{ point.name }}</div>
+                  <div class="point-coord">
+                    {{ point.location.lng }}, {{ point.location.lat }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </aside>
       <div class="right-pane">
@@ -125,6 +182,103 @@ async function fetchRouteRenderMock() {
   margin: 0;
   font-size: 12px;
   color: #6b7280;
+}
+
+.route-list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.route-empty {
+  padding: 10px;
+  border: 1px dashed #e5e7eb;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.route-item {
+  border: 1px solid #eef2f7;
+  border-radius: 10px;
+  padding: 10px;
+  background: #f9fafb;
+}
+
+.route-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.route-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #111827;
+}
+
+.route-id,
+.route-name {
+  font-weight: 600;
+}
+
+.route-distance {
+  color: #94a3b8;
+}
+
+.detail-btn {
+  border: 1px solid #dbe0e6;
+  background: #fff;
+  color: #374151;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.detail-btn:hover {
+  border-color: #4f46e5;
+  color: #4f46e5;
+  background: #eef2ff;
+}
+
+.route-detail {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-title {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.detail-empty {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.point-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: #111827;
+}
+
+.point-coord {
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 900px) {

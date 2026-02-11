@@ -82,7 +82,7 @@ export enum FenceStatus {
 }
 
 export enum TravelMode {
-  /** 骑行（本期固定） */
+  /** 骑行 */
   BICYCLING = "BICYCLING",
 }
 
