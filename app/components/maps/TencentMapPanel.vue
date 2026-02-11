@@ -1,4 +1,6 @@
 ﻿<script setup lang="ts">
+import type { FenceDTO, PointDTO } from '~/types/map-api.types'
+
 const config = useRuntimeConfig() // 运行时配置
 
 const status = ref<'idle' | 'loading' | 'ready' | 'error' | 'missing-key'>('idle') // 地图初始化状态
@@ -23,6 +25,14 @@ let tencentEditor: any = null
 let drawCompleteHandler: ((geometry: any) => void) | null = null
 // 各类图形图层引用
 let tencentOverlays: Record<TencentTool, any> | null = null
+
+// 点位图层引用
+let displayMarkers: any = null
+// 圆形图层引用
+let displayFenceCircles: any = null
+// 多边形图层引用
+let displayFencePolygons: any = null
+
 // 工具切换提示文案
 const toolNotification = ref<string | null>(null)
 // 工具提示定时器
@@ -39,6 +49,14 @@ const isMap3D = ref(false)
 const mapMode = ref<'pick' | 'draw'>('draw')
 // 是否展开按钮区域
 const isToolPanelOpen = ref(true)
+
+type PointWithFences = Pick<PointDTO, 'id' | 'name' | 'location' | 'address'> & {
+  fences?: FenceDTO[] | null
+}
+
+const props = defineProps<{
+  points?: PointWithFences[]
+}>()
 
 const emit = defineEmits<{
   (e: 'map-click', payload: { lat: number; lng: number }): void
@@ -116,6 +134,83 @@ function initTencentDrawTools(TMap: any, map: any) {
     drawOutput.value = JSON.stringify(output, null, 2)
   }
   tencentEditor.on('draw_complete', drawCompleteHandler)
+}
+
+// 初始化地图显示图层（点位、围栏圆、围栏多边形）
+function initDisplayLayers(TMap: any, map: any) {
+  displayMarkers = new TMap.MultiMarker({
+    map,
+    styles: {
+      point: new TMap.MarkerStyle({
+        width: 22,
+        height: 30,
+        anchor: { x: 11, y: 30 },
+        src: 'https://mapapi.qq.com/web/lbs/javascriptGL/demo/img/markerDefault.png',
+      }),
+    },
+  })
+  displayFenceCircles = new TMap.MultiCircle({
+    map,
+    styles: {
+      fenceCircle: new TMap.CircleStyle({
+        color: 'rgba(59, 130, 246, 0.25)',
+        borderColor: '#3b82f6',
+        borderWidth: 2,
+      }),
+    },
+  })
+  displayFencePolygons = new TMap.MultiPolygon({
+    map,
+    styles: {
+      fencePolygon: new TMap.PolygonStyle({
+        color: 'rgba(16, 185, 129, 0.25)',
+        borderColor: '#10b981',
+        borderWidth: 2,
+      }),
+    },
+  })
+}
+
+// 根据点位数据更新地图显示
+function updatePointDisplays() {
+  if (!tencentSdk || !tencentMap) return
+  if (!displayMarkers || !displayFenceCircles || !displayFencePolygons) return
+  const points = props.points ?? []
+  const markerGeometries = points.map((item) => ({
+    id: item.id,
+    styleId: 'point',
+    position: new tencentSdk.LatLng(item.location.lat, item.location.lng),
+    properties: {
+      name: item.name,
+      address: item.address ?? '',
+    },
+  }))
+  displayMarkers.setGeometries(markerGeometries)
+
+  const circleGeometries = []
+  const polygonGeometries = []
+  points.forEach((item) => {
+    const fences = item.fences ?? []
+    fences.forEach((fence) => {
+      if (fence.type === 'CIRCLE' && fence.center && fence.radius) {
+        circleGeometries.push({
+          id: `fence-${fence.id}`,
+          styleId: 'fenceCircle',
+          center: new tencentSdk.LatLng(fence.center.lat, fence.center.lng),
+          radius: fence.radius,
+        })
+      }
+      if (fence.type === 'POLYGON' && fence.points && fence.points.length > 0) {
+        polygonGeometries.push({
+          id: `fence-${fence.id}`,
+          styleId: 'fencePolygon',
+          paths: fence.points.map((pt) => new tencentSdk.LatLng(pt.lat, pt.lng)),
+        })
+      }
+    })
+  })
+  displayFenceCircles.setGeometries(circleGeometries)
+  displayFencePolygons.setGeometries(polygonGeometries)
 }
 
 // 初始化天空盒
@@ -201,7 +296,7 @@ function waitForGlobal(check: () => boolean, timeoutMs = 8000): Promise<void> {
   })
 }
 
-// 切换腾讯绘制工具
+// 切换绘制工具
 function setTencentTool(id: TencentTool) { // 切换腾讯绘制工具
   if (!isDrawMode.value) return
   // 更新当前工具并同步到编辑器
@@ -376,13 +471,19 @@ async function initTencent() {
     syncMapDimensionState()
 
     loadingStep.value = '初始化绘制工具开始'
-    console.info('[map][tencent] 初始化绘制工具开始')
+    console.info('[map][tencent] 正在初始化绘制工具')
     // 初始化绘制工具
     initTencentDrawTools(TMap, tencentMap)
-    loadingStep.value = '初始化绘制工具完成'
-    console.info('[map][tencent] 初始化绘制工具完成', { 耗时ms: Date.now() - startAt })
 
-    // 初始化POI
+    console.info('[map][tencent] 正在初始化地图显示图层')
+    // 初始化地图显示图层
+    initDisplayLayers(TMap, tencentMap)
+
+    console.info('[map][tencent] 正在初始化数据更新显示')
+    // 根据初始数据更新显示
+    updatePointDisplays()
+
+    console.info('[map][tencent] 相关图层与工具初始化完成', { 耗时ms: Date.now() - startAt })
 
     loadingStep.value = '绑定事件开始'
     console.info('[map][tencent] 绑定事件开始')
@@ -417,6 +518,14 @@ watch(mapMode, () => {
   applyMapMode()
 })
 
+watch(
+  () => props.points,
+  () => {
+    updatePointDisplays()
+  },
+  { deep: true },
+)
+
 // 组件卸载前清理定时器
 function destroyTencentMap() {
   // 释放事件与对象引用
@@ -434,6 +543,18 @@ function destroyTencentMap() {
   if (tencentOverlays) {
     Object.values(tencentOverlays).forEach((overlay: any) => overlay?.setMap?.(null))
     tencentOverlays = null
+  }
+  if (displayMarkers) {
+    displayMarkers.setMap?.(null)
+    displayMarkers = null
+  }
+  if (displayFenceCircles) {
+    displayFenceCircles.setMap?.(null)
+    displayFenceCircles = null
+  }
+  if (displayFencePolygons) {
+    displayFencePolygons.setMap?.(null)
+    displayFencePolygons = null
   }
   if (toolNoticeTimer) {
     window.clearTimeout(toolNoticeTimer)
