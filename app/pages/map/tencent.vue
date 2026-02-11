@@ -17,6 +17,13 @@ function handleMapClick(payload: { lat: number; lng: number; }) {
 
 const routeList = ref<RouteRenderDTO[]>([])
 const expandedRouteIds = ref<Set<string>>(new Set())
+const selectedPoint = ref<{
+  id: string
+  name: string
+  location: { lng: number; lat: number }
+  address?: string | null
+  fences?: any[] | null
+} | null>(null)
 
 // 模拟获取路线渲染数据的函数
 async function fetchRouteRenderMock() {
@@ -41,6 +48,23 @@ function toggleRouteDetail(routeId: string) {
 function formatKm(meter?: number) {
   if (typeof meter !== 'number' || Number.isNaN(meter)) return '--'
   return (meter / 1000).toFixed(2)
+}
+
+function handlePointClick(point: { id: string; name?: string; location?: { lng: number; lat: number } }) {
+  // 点击点位列表时，将点位传递给地图组件展示
+  if (!point.location) return
+  console.info('[地图点位] 已选择点位', {
+    id: point.id,
+    name: point.name ?? point.id,
+    location: point.location,
+  })
+  selectedPoint.value = {
+    id: point.id,
+    name: point.name ?? point.id,
+    location: point.location,
+    address: null,
+    fences: [],
+  }
 }
 </script>
 
@@ -88,6 +112,9 @@ function formatKm(meter?: number) {
                   v-for="point in item.route.points"
                   :key="point.id"
                   class="point-row"
+                  role="button"
+                  tabindex="0"
+                  @click="handlePointClick(point)"
                 >
                   <div class="point-name">{{ point.name }}</div>
                   <div class="point-coord">
@@ -101,7 +128,7 @@ function formatKm(meter?: number) {
       </aside>
       <div class="right-pane">
         <ClientOnly>
-          <TencentMapPanel @map-click="handleMapClick" />
+          <TencentMapPanel :points="selectedPoint ? [selectedPoint] : []" @map-click="handleMapClick" />
         </ClientOnly>
       </div>
     </section>

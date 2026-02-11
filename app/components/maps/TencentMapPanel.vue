@@ -32,6 +32,8 @@ let displayMarkers: any = null
 let displayFenceCircles: any = null
 // 多边形图层引用
 let displayFencePolygons: any = null
+// 点位信息窗
+let displayInfoWindow: any = null
 
 // 工具切换提示文案
 const toolNotification = ref<string | null>(null)
@@ -169,13 +171,23 @@ function initDisplayLayers(TMap: any, map: any) {
       }),
     },
   })
+
+  displayInfoWindow = new TMap.InfoWindow({
+    map,
+    position: new TMap.LatLng(defaultCenter.lat, defaultCenter.lng),
+    content: '',
+  })
+  displayInfoWindow.close()
 }
 
 // 根据点位数据更新地图显示
 function updatePointDisplays() {
+  // 没有地图实例或展示图层时直接返回
   if (!tencentSdk || !tencentMap) return
   if (!displayMarkers || !displayFenceCircles || !displayFencePolygons) return
+  // 读取外部传入的点位数据（允许为空）
   const points = props.points ?? []
+  // 生成点位 marker 的几何数据
   const markerGeometries = points.map((item) => ({
     id: item.id,
     styleId: 'point',
@@ -185,13 +197,42 @@ function updatePointDisplays() {
       address: item.address ?? '',
     },
   }))
+  // 更新点位图层
   displayMarkers.setGeometries(markerGeometries)
 
-  const circleGeometries = []
-  const polygonGeometries = []
+  // 默认显示第一个点位的信息窗（无需点击）
+  if (displayInfoWindow) {
+    if (points.length > 0) {
+      const first = points[0]
+      if (!first) return
+      const content = `
+        <div class="map-info-window map-info-point-window">
+          <div class="info-item">${first.name}</div>
+        </div>
+      `
+      displayInfoWindow.setPosition(new tencentSdk.LatLng(first.location.lat, first.location.lng))
+      displayInfoWindow.setContent(content)
+      displayInfoWindow.open()
+
+      // 平滑移动到第一个点位位置，并根据当前地图模式调整视角
+      easeToLocation(first.location.lng, first.location.lat, {
+        zoom: 17,
+        rotation: 90,
+        pitch: isMap3D.value ? 70 : 0,
+      })
+    } else {
+      displayInfoWindow.close()
+    }
+  }
+
+  // 分别收集圆形与多边形围栏几何
+  const circleGeometries: any[] = []
+  const polygonGeometries: any[] = []
   points.forEach((item) => {
+    // 单个点位可能关联多个围栏
     const fences = item.fences ?? []
     fences.forEach((fence) => {
+      // 圆形围栏
       if (fence.type === 'CIRCLE' && fence.center && fence.radius) {
         circleGeometries.push({
           id: `fence-${fence.id}`,
@@ -200,6 +241,7 @@ function updatePointDisplays() {
           radius: fence.radius,
         })
       }
+      // 多边形围栏
       if (fence.type === 'POLYGON' && fence.points && fence.points.length > 0) {
         polygonGeometries.push({
           id: `fence-${fence.id}`,
@@ -209,6 +251,7 @@ function updatePointDisplays() {
       }
     })
   })
+  // 更新围栏图层
   displayFenceCircles.setGeometries(circleGeometries)
   displayFencePolygons.setGeometries(polygonGeometries)
 }
@@ -357,6 +400,22 @@ function toggleMapDimension() {
   console.info('[tencent][map] toggle dimension end', { to: isMap3D.value ? '3D' : '2D' })
 }
 
+// 平滑移动到指定坐标（可选调整缩放/旋转/俯仰）
+function easeToLocation(
+  lng: number,
+  lat: number,
+  options?: { zoom?: number; rotation?: number; pitch?: number; duration?: number },
+) {
+  if (!tencentMap || !tencentSdk) return
+  const view = {
+    center: new tencentSdk.LatLng(lat, lng),
+    zoom: options?.zoom,
+    rotation: options?.rotation,
+    pitch: options?.pitch,
+  }
+  tencentMap.easeTo?.(view, { duration: options?.duration ?? 2000 })
+}
+
 // 回读地图真实模式并同步 UI
 function syncMapDimensionState() {
   if (!tencentMap) return
@@ -389,6 +448,8 @@ function clickCallback(evt: any){
   const lat = evt.latLng.getLat().toFixed(6);
   const lng = evt.latLng.getLng().toFixed(6);
   emit('map-click', { lat: Number(lat), lng: Number(lng) })
+  // 绘制模式下不弹信息窗
+  if (isDrawMode.value) return
   // 打开窗体展示Poi
   // 获取click事件返回的poi信息
   let poi = evt.poi;
@@ -555,6 +616,10 @@ function destroyTencentMap() {
   if (displayFencePolygons) {
     displayFencePolygons.setMap?.(null)
     displayFencePolygons = null
+  }
+  if (displayInfoWindow) {
+    displayInfoWindow.close?.()
+    displayInfoWindow = null
   }
   if (toolNoticeTimer) {
     window.clearTimeout(toolNoticeTimer)
@@ -854,6 +919,9 @@ onBeforeUnmount(() => {
     padding: 2px; /* 合理内边距 */
     min-width: 280px; /* 适配按钮宽度 */
     /* background: #fff; */
+}
+.map-info-point-window {
+    min-width: 0px; /* 适配按钮宽度 */
 }
 
 /* 信息项样式 */
