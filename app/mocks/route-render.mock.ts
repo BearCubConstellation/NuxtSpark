@@ -2,9 +2,9 @@ import {
   FenceStatus, // 围栏状态枚举（来源：FenceDTO.status）
   FenceType, // 围栏类型枚举（来源：FenceDTO.type）
   TravelMode  // 出行方式枚举（来源：RouteRenderDTO.route.travelMode）
-} from '../../documents/map-api.types_v1'
+} from '~/types/map-api.types'
 // 路线渲染数据（来源：RouteRenderDTO）
-import type { RouteRenderDTO } from '../../documents/map-api.types_v1'
+import type { RouteRenderDTO } from '~/types/map-api.types'
 
 export const mockRouteRenderList: RouteRenderDTO[] = [
   {

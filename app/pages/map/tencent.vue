@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import TencentMapPanel from '~/components/maps/TencentMapPanel.vue'
-import type { RouteRenderDTO } from '~/../documents/map-api.types_v1'
+import type { RouteRenderDTO } from '~/types/map-api.types'
 import { mockRouteRenderList } from '~/mocks/route-render.mock'
 
 definePageMeta({

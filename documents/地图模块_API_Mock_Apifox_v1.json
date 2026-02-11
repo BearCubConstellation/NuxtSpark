@@ -427,11 +427,14 @@
                   "location": {
                     "$ref": "#/components/schemas/LngLat"
                   },
-                  "fenceId": {
-                    "type": "string"
-                  },
                   "remark": {
                     "type": "string"
+                  },
+                  "fenceIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
                   }
                 },
                 "required": [
@@ -1664,11 +1667,6 @@
             "nullable": true,
             "title": "地址"
           },
-          "fenceId": {
-            "type": "string",
-            "nullable": true,
-            "title": "关联围栏ID"
-          },
           "remark": {
             "type": "string",
             "nullable": true,
@@ -1683,6 +1681,14 @@
             "type": "string",
             "format": "date-time",
             "title": "更新时间"
+          },
+          "fenceIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "title": "????ID??"
           }
         },
         "required": [
