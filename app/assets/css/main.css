@@ -1,4 +1,4 @@
-@font-face {
+﻿@font-face {
   font-family: 'HarmonyOS Sans';
   src: url('~/assets/fonts/HarmonyOS_Sans_Regular.ttf') format('truetype');
   font-weight: 400;
@@ -44,6 +44,10 @@
   font-weight: 700;
   font-style: normal;
   font-display: swap;
+}
+
+html {
+  /* scrollbar-gutter: stable; */
 }
 
 html,
