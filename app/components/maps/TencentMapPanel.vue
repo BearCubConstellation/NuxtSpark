@@ -2,6 +2,8 @@
 const config = useRuntimeConfig() // 运行时配置
 
 const status = ref<'idle' | 'loading' | 'ready' | 'error' | 'missing-key'>('idle') // 地图初始化状态
+const loadingStep = ref<string>('') // 初始化阶段提示
+const lastError = ref<string>('') // 初始化失败原因
 
 // 默认地图初始化中心点
 const defaultCenter = { lng: 116.404, lat: 39.915 } // 北京
@@ -17,6 +19,8 @@ let tencentSdk: any = null
 let tencentMap: any = null
 // 几何编辑器实例
 let tencentEditor: any = null
+// 绘制完成事件处理器（用于解绑）
+let drawCompleteHandler: ((geometry: any) => void) | null = null
 // 各类图形图层引用
 let tencentOverlays: Record<TencentTool, any> | null = null
 // 工具切换提示文案
@@ -27,6 +31,8 @@ let toolNoticeTimer: number | null = null
 const drawOutput = ref<string>('')
 // 编辑器当前模式
 const editorMode = ref<any>(null)
+// 地图挂载容器
+const mapHost = ref<HTMLDivElement | null>(null)
 // 地图当前是否为 3D 模式
 const isMap3D = ref(false)
 // 地图操作模式：选点 / 绘制
@@ -44,6 +50,7 @@ const isEditorInteract = computed(
 )
 
 const isDrawMode = computed(() => mapMode.value === 'draw')
+const isLoading = computed(() => status.value === 'loading')
 
 // 绘制工具显示文本
 const toolLabels: Record<TencentTool, string> = {
@@ -85,7 +92,7 @@ function initTencentDrawTools(TMap: any, map: any) {
   })
 
   // 处理绘制完成后的数据输出
-  tencentEditor.on('draw_complete', (geometry: any) => {
+  drawCompleteHandler = (geometry: any) => {
     // 根据返回的几何图形 ID 找到对应的图层数据
     const id = geometry.id
     const activeId = tencentEditor?.getActiveOverlay?.().id as TencentTool | undefined
@@ -107,7 +114,8 @@ function initTencentDrawTools(TMap: any, map: any) {
     }
     console.log('[tencent][draw_complete] data:', output)
     drawOutput.value = JSON.stringify(output, null, 2)
-  })
+  }
+  tencentEditor.on('draw_complete', drawCompleteHandler)
 }
 
 // 初始化天空盒
@@ -315,19 +323,39 @@ async function initTencent() {
     return
   }
   status.value = 'loading'
+  loadingStep.value = '开始初始化'
+  lastError.value = ''
+  const startAt = Date.now()
+  console.info('[map][tencent] 开始初始化')
   try {
+    loadingStep.value = '加载SDK...'
+    console.info('[map][tencent] 加载SDK...')
     // 加载 SDK 并等待全局对象就绪
     await loadScriptOnce('tencent-map-sdk', `https://map.qq.com/api/gljs?v=1.exp&key=${key}&libraries=tools`)
+    loadingStep.value = '加载SDK完成'
+    console.info('[map][tencent] 加载SDK完成', { 耗时ms: Date.now() - startAt })
+    loadingStep.value = '等待全局对象开始'
+    console.info('[map][tencent] 等待全局对象开始')
     await waitForGlobal(() => Boolean((window as any).TMap))
+    loadingStep.value = '等待全局对象完成'
+    console.info('[map][tencent] 等待全局对象完成', { 耗时ms: Date.now() - startAt })
     const TMap = (window as any).TMap
     if (!TMap) throw new Error('TMap not found')
+    loadingStep.value = '获取TMap成功'
+    console.info('[map][tencent] 获取TMap成功')
     tencentSdk = TMap
-    const container = document.getElementById('qq-map')
+    const container = mapHost.value
     if (!container) throw new Error('qq-map container not found')
 
+    loadingStep.value = '初始化天空盒开始'
+    console.info('[map][tencent] 初始化天空盒开始')
     // 初始化天空盒
     const skybox = initSkyBox(TMap)
+    loadingStep.value = '初始化天空盒完成'
+    console.info('[map][tencent] 初始化天空盒完成', { 耗时ms: Date.now() - startAt })
 
+    loadingStep.value = '创建地图实例开始'
+    console.info('[map][tencent] 创建地图实例开始')
     // 创建地图实例
     const map = new TMap.Map(container, {
       center: new TMap.LatLng(defaultCenter.lat, defaultCenter.lng),
@@ -340,27 +368,42 @@ async function initTencent() {
     })
 
     tencentMap = map
+    loadingStep.value = '创建地图实例完成'
+    console.info('[map][tencent] 创建地图实例完成', { 耗时ms: Date.now() - startAt })
     console.info('[tencent][map] created', { isMap3D: isMap3D.value })
     tencentMap.setViewMode?.(isMap3D.value ? '3D' : '2D')
     tencentMap.setPitch?.(isMap3D.value ? 70 : 0)
     syncMapDimensionState()
 
+    loadingStep.value = '初始化绘制工具开始'
+    console.info('[map][tencent] 初始化绘制工具开始')
     // 初始化绘制工具
     initTencentDrawTools(TMap, tencentMap)
+    loadingStep.value = '初始化绘制工具完成'
+    console.info('[map][tencent] 初始化绘制工具完成', { 耗时ms: Date.now() - startAt })
 
     // 初始化POI
 
+    loadingStep.value = '绑定事件开始'
+    console.info('[map][tencent] 绑定事件开始')
     editorMode.value = tencentEditor?.getActionMode?.() ?? TMap.tools.constants.EDITOR_ACTION.DRAW
     applyMapMode()
 
     //绑定点击事件到回调函数
     tencentMap.on("click", clickCallback)
+    loadingStep.value = '绑定事件完成'
+    console.info('[map][tencent] 绑定事件完成', { 耗时ms: Date.now() - startAt })
 
     status.value = 'ready'
+    loadingStep.value = ''
+    console.info('[map][tencent] 初始化成功', { 总耗时ms: Date.now() - startAt })
     console.info('[map][tencent] ready')
   } catch (err) {
     status.value = 'error'
-    console.warn('[map][tencent] init failed', err)
+    lastError.value = err instanceof Error ? err.message : String(err)
+    loadingStep.value = ''
+    console.warn('[map][tencent] 初始化失败', err)
+    console.info('[map][tencent] 初始化结束', { 状态: status.value, 总耗时ms: Date.now() - startAt })
   }
 }
 
@@ -375,13 +418,17 @@ watch(mapMode, () => {
 })
 
 // 组件卸载前清理定时器
-onBeforeUnmount(() => {
-  // 卸载时释放事件与对象引用
+function destroyTencentMap() {
+  // 释放事件与对象引用
   if (tencentEditor?.off) {
-    tencentEditor.off('draw_complete')
+    if (drawCompleteHandler) {
+      tencentEditor.off('draw_complete', drawCompleteHandler)
+      drawCompleteHandler = null
+    }
   }
   tencentEditor?.destroy?.()
   tencentEditor = null
+  tencentMap?.off?.('click', clickCallback)
   tencentMap?.destroy?.()
   tencentMap = null
   if (tencentOverlays) {
@@ -392,6 +439,21 @@ onBeforeUnmount(() => {
     window.clearTimeout(toolNoticeTimer)
     toolNoticeTimer = null
   }
+}
+
+async function refreshTencentMap() {
+  console.info('[map][tencent] 刷新地图被点击', { status: status.value })
+  if (status.value === 'loading') return
+  console.info('[map][tencent] refresh start')
+  status.value = 'loading'
+  destroyTencentMap()
+  await initTencent()
+  console.info('[map][tencent] refresh end', { status: status.value })
+}
+
+onBeforeUnmount(() => {
+  // 卸载时释放事件与对象引用
+  destroyTencentMap()
 })
 </script>
 
@@ -404,12 +466,16 @@ onBeforeUnmount(() => {
           v-if="!isToolPanelOpen"
           class="tool-btn"
           type="button"
+          :disabled="isLoading"
           @click="isToolPanelOpen = !isToolPanelOpen"
         >
           展开选项
         </button>
-        <button class="tool-btn" type="button" @click="toggleMapDimension">
+        <button class="tool-btn" type="button" :disabled="isLoading" @click="toggleMapDimension">
           地图视角：{{ isMap3D ? '3D' : '2D' }}
+        </button>
+        <button class="tool-btn" type="button" @click="refreshTencentMap">
+          刷新地图
         </button>
         <span class="status">{{ status }}</span>
       </div>
@@ -421,6 +487,7 @@ onBeforeUnmount(() => {
           class="tool-btn"
           :class="{ active: mapMode === 'pick' }"
           type="button"
+          :disabled="isLoading"
           @click="mapMode = 'pick'"
         >
           选点
@@ -429,6 +496,7 @@ onBeforeUnmount(() => {
           class="tool-btn"
           :class="{ active: mapMode === 'draw' }"
           type="button"
+          :disabled="isLoading"
           @click="mapMode = 'draw'"
         >
           绘制
@@ -441,11 +509,11 @@ onBeforeUnmount(() => {
         <template v-if="isDrawMode">
           <!-- <button class="tool-btn" :class="{ active: tencentTool === 'marker' }" type="button" @click="setTencentTool('marker')">点</button>
           <button class="tool-btn" :class="{ active: tencentTool === 'polyline' }" type="button" @click="setTencentTool('polyline')">线</button> -->
-          <button class="tool-btn" :class="{ active: tencentTool === 'polygon' }" :disabled="isEditorInteract" type="button" @click="setTencentTool('polygon')">多边形</button>
-          <button class="tool-btn" :class="{ active: tencentTool === 'circle' }" :disabled="isEditorInteract" type="button" @click="setTencentTool('circle')">圆</button>
-          <button class="tool-btn" :class="{ active: tencentTool === 'rectangle' }" :disabled="isEditorInteract" type="button" @click="setTencentTool('rectangle')">矩形</button>
-          <button class="tool-btn" :class="{ active: tencentTool === 'ellipse' }" :disabled="isEditorInteract" type="button" @click="setTencentTool('ellipse')">椭圆</button>
-          <button class="tool-btn" type="button" @click="toggleEditorMode">
+          <button class="tool-btn" :class="{ active: tencentTool === 'polygon' }" :disabled="isEditorInteract || isLoading" type="button" @click="setTencentTool('polygon')">多边形</button>
+          <button class="tool-btn" :class="{ active: tencentTool === 'circle' }" :disabled="isEditorInteract || isLoading" type="button" @click="setTencentTool('circle')">圆</button>
+          <button class="tool-btn" :class="{ active: tencentTool === 'rectangle' }" :disabled="isEditorInteract || isLoading" type="button" @click="setTencentTool('rectangle')">矩形</button>
+          <button class="tool-btn" :class="{ active: tencentTool === 'ellipse' }" :disabled="isEditorInteract || isLoading" type="button" @click="setTencentTool('ellipse')">椭圆</button>
+          <button class="tool-btn" type="button" :disabled="isLoading" @click="toggleEditorMode">
             编辑器模式：{{ editorMode === tencentSdk?.tools?.constants?.EDITOR_ACTION?.DRAW ? '绘制' : '交互' }}
           </button>
         </template>
@@ -454,7 +522,7 @@ onBeforeUnmount(() => {
       <span v-if="isDrawMode" class="tool-hint">点击地图区域移动鼠标开始绘制电子围栏</span>
 
       <div class="tool-footer">
-        <button class="tool-btn tool-toggle" type="button" @click="isToolPanelOpen = !isToolPanelOpen">
+        <button class="tool-btn tool-toggle" type="button" :disabled="isLoading" @click="isToolPanelOpen = !isToolPanelOpen">
           {{ isToolPanelOpen ? '收起选项' : '展开选项' }}
         </button>
       </div>
@@ -463,8 +531,15 @@ onBeforeUnmount(() => {
       <div v-if="toolNotification" class="tool-toast">{{ toolNotification }}</div>
     </transition>
     <div id="qq-map" class="map">
+      <div ref="mapHost" class="map-host"></div>
       <div v-if="status !== 'ready'" class="placeholder">
-        {{ status === 'missing-key' ? '缺少 Key' : '加载中或失败' }}
+        {{
+          status === 'missing-key'
+            ? '缺少 Key'
+            : status === 'loading'
+              ? (loadingStep || '正在加载')
+              : `初始化失败：${lastError || '未知错误'}`
+        }}
       </div>
     </div>
     <div class="draw-output">
@@ -600,6 +675,11 @@ onBeforeUnmount(() => {
 .map {
   position: relative;
   height: 360px;
+}
+
+.map-host {
+  width: 100%;
+  height: 100%;
 }
 
 .draw-output {

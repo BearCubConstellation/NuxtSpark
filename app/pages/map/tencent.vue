@@ -7,6 +7,7 @@ definePageMeta({
   title: '腾讯地图',
   nav: true,
   order: 4,
+  layoutMode: 'fixed',
 })
 
 // 处理地图组件的点击事件
@@ -52,8 +53,8 @@ function formatKm(meter?: number) {
     <section class="page-content">
       <aside class="left-pane">
         <div class="left-card">
-          <h2>左侧面板</h2>
-          <p>线路列表（默认展示 ID / 名称 / 总理论里程）。</p>
+          <h2>线路列表</h2>
+          <p>（ ID / 名称 / 总理论里程）</p>
           <div class="route-list">
             <div v-if="routeList.length === 0" class="route-empty">暂无数据</div>
             <div v-if="routeList.length === 0" class="page-actions">
