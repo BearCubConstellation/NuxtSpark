@@ -19,6 +19,8 @@ const tencentTool = ref<TencentTool>('rectangle')
 let tencentSdk: any = null
 // 地图实例
 let tencentMap: any = null
+// 控件实例
+let tencentControl: any = null
 // 几何编辑器实例
 let tencentEditor: any = null
 // 绘制完成事件处理器（用于解绑）
@@ -575,7 +577,7 @@ async function initTencent() {
     // 创建地图实例
     const map = new TMap.Map(container, {
       center: new TMap.LatLng(defaultCenter.lat, defaultCenter.lng),
-      zoom: 17, //设置地图缩放级别
+      zoom: 10, //设置地图缩放级别
       pitch: isMap3D.value ? 70 : 0, //设置俯仰角
       rotation: 45, //设置地图旋转角度,
       renderOptions: {
@@ -583,13 +585,24 @@ async function initTencent() {
       },
       mapStyleId: mapstyle,
     })
+    
+    // 获取控件
+    const control = map.getControl(TMap.constants.DEFAULT_CONTROL_ID.ZOOM);
+    // 设置控件缩放参数可见
+    control.setNumVisible(true);
+    // 调整控件位置到右下角
+    control.setPosition(TMap.constants.CONTROL_POSITION.BOTTOM_RIGHT);
 
     tencentMap = map
+    tencentControl = control
+    
     loadingStep.value = '创建地图实例完成'
     console.info('[map][tencent] 创建地图实例完成', { 耗时ms: Date.now() - startAt })
-    console.info('[tencent][map] created', { isMap3D: isMap3D.value })
+
     tencentMap.setViewMode?.(isMap3D.value ? '3D' : '2D')
     tencentMap.setPitch?.(isMap3D.value ? 70 : 0)
+
+    // 同步地图视角状态，确保 UI 与实际显示一致
     syncMapDimensionState()
 
     loadingStep.value = '初始化绘制工具开始'
@@ -608,8 +621,11 @@ async function initTencent() {
     console.info('[map][tencent] 相关图层与工具初始化完成', { 耗时ms: Date.now() - startAt })
 
     loadingStep.value = '绑定事件开始'
+
     console.info('[map][tencent] 绑定事件开始')
     editorMode.value = tencentEditor?.getActionMode?.() ?? TMap.tools.constants.EDITOR_ACTION.DRAW
+
+    // 根据地图模式同步编辑器状态
     applyMapMode()
 
     //绑定点击事件到回调函数
