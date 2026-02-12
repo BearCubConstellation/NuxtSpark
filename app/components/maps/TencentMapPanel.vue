@@ -452,21 +452,19 @@ function clickCallback(evt: any){
   if (isDrawMode.value) return
   // 打开窗体展示Poi
   // 获取click事件返回的poi信息
-  let poi = evt.poi;
-  if (poi) {
-    const content = `
-      <div class="map-info-window">
-          <div class="info-item">${poi.name}</div>
-          <div class="coord-item">${lat}, ${lng}</div>
-          <div class="btn-group">
-              <button class="map-btn btn-start" id="btnStart">设为起点</button>
-              <button class="map-btn btn-way" id="btnWay">设为途经点</button>
-              <button class="map-btn btn-end" id="btnEnd">设为终点</button>
-          </div>
-      </div>
-    `;
-    openInfoWindow(content, evt.latLng)
-  }
+  let poi = evt.poi || {name: '-'};
+  const content = `
+    <div class="map-info-window">
+        <div class="info-item">${poi.name}</div>
+        <div class="coord-item">${lat}, ${lng}</div>
+        <div class="btn-group">
+            <button class="map-btn btn-start" id="btnStart">设为起点</button>
+            <button class="map-btn btn-way" id="btnWay">设为途经点</button>
+            <button class="map-btn btn-end" id="btnEnd">设为终点</button>
+        </div>
+    </div>
+  `;
+  openInfoWindow(content, evt.latLng)
 }
 
 // 初始化腾讯地图与绘制工具
@@ -917,11 +915,11 @@ onBeforeUnmount(() => {
     flex-direction: column;
     gap: 8px; /* 增大间距更舒适 */
     padding: 2px; /* 合理内边距 */
-    min-width: 280px; /* 适配按钮宽度 */
+    min-width: 10px; /* 适配按钮宽度 */
     /* background: #fff; */
 }
 .map-info-point-window {
-    min-width: 0px; /* 适配按钮宽度 */
+    min-width: 10px; /* 适配按钮宽度 */
 }
 
 /* 信息项样式 */
