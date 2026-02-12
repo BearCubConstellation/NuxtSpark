@@ -17,13 +17,13 @@ function handleMapClick(payload: { lat: number; lng: number; }) {
 
 const routeList = ref<RouteRenderDTO[]>([])
 const expandedRouteIds = ref<Set<string>>(new Set())
-const selectedPoint = ref<{
+const selectedPoints = ref<Array<{
   id: string
   name: string
   location: { lng: number; lat: number }
   address?: string | null
   fences?: any[] | null
-} | null>(null)
+}>>([])
 
 // 模拟获取路线渲染数据的函数
 async function fetchRouteRenderMock() {
@@ -50,21 +50,32 @@ function formatKm(meter?: number) {
   return (meter / 1000).toFixed(2)
 }
 
-function handlePointClick(point: { id: string; name?: string; location?: { lng: number; lat: number } }) {
-  // 点击点位列表时，将点位传递给地图组件展示
-  if (!point.location) return
-  console.info('[地图点位] 已选择点位', {
-    id: point.id,
-    name: point.name ?? point.id,
-    location: point.location,
-  })
-  selectedPoint.value = {
+function normalizePoint(point: { id: string; name?: string; location?: { lng: number; lat: number } }) {
+  if (!point.location) return null
+  return {
     id: point.id,
     name: point.name ?? point.id,
     location: point.location,
     address: null,
     fences: [],
   }
+}
+
+function handlePointView(point: { id: string; name?: string; location?: { lng: number; lat: number } }) {
+  // 点击单点位按钮，将点位传递给地图组件展示
+  const normalized = normalizePoint(point)
+  if (!normalized) return
+  console.info('[地图点位] 单点位展示', normalized)
+  selectedPoints.value = [normalized]
+}
+
+function handleRouteView(route: { id: string; points: Array<{ id: string; name?: string; location?: { lng: number; lat: number } }> }) {
+  // 点击查看所有点位，将线路所有点位传递给地图组件展示
+  const points = route.points
+    .map((point) => normalizePoint(point))
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
+  console.info('[地图点位] 线路点位展示', { routeId: route.id, count: points.length })
+  selectedPoints.value = points
 }
 </script>
 
@@ -95,13 +106,22 @@ function handlePointClick(point: { id: string; name?: string; location?: { lng: 
                     总理论里程：{{ formatKm(item.route.totalTheoryDistanceMeter) }} km
                   </div>
                 </div>
-                <button
-                  class="detail-btn"
-                  type="button"
-                  @click="toggleRouteDetail(item.route.id)"
-                >
-                  {{ expandedRouteIds.has(item.route.id) ? '收起详情' : '展开详情' }}
-                </button>
+                <div class="route-actions">
+                  <button
+                    class="route-btn"
+                    type="button"
+                    @click="handleRouteView(item.route)"
+                  >
+                    查看所有点位
+                  </button>
+                  <button
+                    class="detail-btn"
+                    type="button"
+                    @click="toggleRouteDetail(item.route.id)"
+                  >
+                    {{ expandedRouteIds.has(item.route.id) ? '收起详情' : '展开详情' }}
+                  </button>
+                </div>
               </div>
               <div v-if="expandedRouteIds.has(item.route.id)" class="route-detail">
                 <div class="detail-title">点位信息</div>
@@ -112,14 +132,18 @@ function handlePointClick(point: { id: string; name?: string; location?: { lng: 
                   v-for="point in item.route.points"
                   :key="point.id"
                   class="point-row"
-                  role="button"
-                  tabindex="0"
-                  @click="handlePointClick(point)"
                 >
                   <div class="point-name">{{ point.name }}</div>
                   <div class="point-coord">
                     {{ point.location.lng }}, {{ point.location.lat }}
                   </div>
+                  <button
+                    class="point-btn"
+                    type="button"
+                    @click="handlePointView(point)"
+                  >
+                    在地图中查看
+                  </button>
                 </div>
               </div>
             </div>
@@ -128,7 +152,7 @@ function handlePointClick(point: { id: string; name?: string; location?: { lng: 
       </aside>
       <div class="right-pane">
         <ClientOnly>
-          <TencentMapPanel :points="selectedPoint ? [selectedPoint] : []" @map-click="handleMapClick" />
+          <TencentMapPanel :points="selectedPoints" @map-click="handleMapClick" />
         </ClientOnly>
       </div>
     </section>
@@ -259,6 +283,13 @@ function handlePointClick(point: { id: string; name?: string; location?: { lng: 
   color: #94a3b8;
 }
 
+.route-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.route-btn,
 .detail-btn {
   border: 1px solid #dbe0e6;
   background: #fff;
@@ -270,6 +301,7 @@ function handlePointClick(point: { id: string; name?: string; location?: { lng: 
   white-space: nowrap;
 }
 
+.route-btn:hover,
 .detail-btn:hover {
   border-color: #4f46e5;
   color: #4f46e5;
@@ -302,6 +334,23 @@ function handlePointClick(point: { id: string; name?: string; location?: { lng: 
   gap: 8px;
   font-size: 12px;
   color: #111827;
+}
+
+.point-btn {
+  border: 1px solid #dbe0e6;
+  background: #fff;
+  color: #374151;
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.point-btn:hover {
+  border-color: #4f46e5;
+  color: #4f46e5;
+  background: #eef2ff;
 }
 
 .point-coord {

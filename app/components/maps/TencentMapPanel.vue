@@ -32,8 +32,8 @@ let displayMarkers: any = null
 let displayFenceCircles: any = null
 // 多边形图层引用
 let displayFencePolygons: any = null
-// 点位信息窗
-let displayInfoWindow: any = null
+// 点位信息窗（支持多点位）
+let displayPointInfoWindows: any[] = []
 
 // 工具切换提示文案
 const toolNotification = ref<string | null>(null)
@@ -172,12 +172,7 @@ function initDisplayLayers(TMap: any, map: any) {
     },
   })
 
-  displayInfoWindow = new TMap.InfoWindow({
-    map,
-    position: new TMap.LatLng(defaultCenter.lat, defaultCenter.lng),
-    content: '',
-  })
-  displayInfoWindow.close()
+  displayPointInfoWindows = []
 }
 
 // 根据点位数据更新地图显示
@@ -200,28 +195,37 @@ function updatePointDisplays() {
   // 更新点位图层
   displayMarkers.setGeometries(markerGeometries)
 
-  // 默认显示第一个点位的信息窗（无需点击）
-  if (displayInfoWindow) {
-    if (points.length > 0) {
-      const first = points[0]
-      if (!first) return
+  // 清理旧点位信息窗
+  if (displayPointInfoWindows.length > 0) {
+    displayPointInfoWindows.forEach((info) => info?.close?.())
+    displayPointInfoWindows = []
+  }
+
+  // 为每个点位创建信息窗
+  if (points.length > 0) {
+    points.forEach((point) => {
       const content = `
         <div class="map-info-window map-info-point-window">
-          <div class="info-item">${first.name}</div>
+          <div class="info-item">${point.name}</div>
         </div>
       `
-      displayInfoWindow.setPosition(new tencentSdk.LatLng(first.location.lat, first.location.lng))
-      displayInfoWindow.setContent(content)
-      displayInfoWindow.open()
+      const infoWindow = new tencentSdk.InfoWindow({
+        map: tencentMap,
+        position: new tencentSdk.LatLng(point.location.lat, point.location.lng),
+        content,
+      })
+      infoWindow.open()
+      displayPointInfoWindows.push(infoWindow)
+    })
 
+    const first = points[0]
+    if (first) {
       // 平滑移动到第一个点位位置，并根据当前地图模式调整视角
       easeToLocation(first.location.lng, first.location.lat, {
         zoom: 17,
         rotation: 90,
         pitch: isMap3D.value ? 70 : 0,
       })
-    } else {
-      displayInfoWindow.close()
     }
   }
 
@@ -615,9 +619,9 @@ function destroyTencentMap() {
     displayFencePolygons.setMap?.(null)
     displayFencePolygons = null
   }
-  if (displayInfoWindow) {
-    displayInfoWindow.close?.()
-    displayInfoWindow = null
+  if (displayPointInfoWindows.length > 0) {
+    displayPointInfoWindows.forEach((info) => info?.close?.())
+    displayPointInfoWindows = []
   }
   if (toolNoticeTimer) {
     window.clearTimeout(toolNoticeTimer)
