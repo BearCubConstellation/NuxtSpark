@@ -283,6 +283,13 @@ function initSkyBox(TMap: any) {
   }
 }
 
+// 初始化地图风格
+function initMapStyle() {
+  // 基于当前系统时间选择地图风格
+  const hour = new Date().getHours()
+  return hour >= 6 && hour < 18 ? 'style' : 'style2'
+}
+
 // 对 Key 做脱敏显示
 function maskKey(value?: string) {
   // 只展示 Key 的前半部分
@@ -454,7 +461,7 @@ function fitToPoints(points: PointWithFences[]) {
     tencentMap.fitBounds(bounds, { padding: 60 })
     return
   }
-  
+
   // 兜底：手动计算中心点并给一个相对合适的缩放
   const lats = points.map((point) => point.location.lat)
   const lngs = points.map((point) => point.location.lng)
@@ -556,6 +563,10 @@ async function initTencent() {
     console.info('[map][tencent] 初始化天空盒开始')
     // 初始化天空盒
     const skybox = initSkyBox(TMap)
+
+    // 初始化地图风格
+    const mapstyle = initMapStyle();
+
     loadingStep.value = '初始化天空盒完成'
     console.info('[map][tencent] 初始化天空盒完成', { 耗时ms: Date.now() - startAt })
 
@@ -569,7 +580,8 @@ async function initTencent() {
       rotation: 45, //设置地图旋转角度,
       renderOptions: {
           skyOptions: skybox,
-      }
+      },
+      mapStyleId: mapstyle,
     })
 
     tencentMap = map
