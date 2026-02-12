@@ -102,7 +102,7 @@ flowchart LR
 - **Fence（围栏）**：空间几何区域（圆/多边形），用于范围展示与判断
 - **Render（RouteRenderDTO）**：前端渲染所需的聚合数据包
 
-### 3.2 关系链路（一句话版）
+### 3.2 关系链路
 - **业务链路**：Route -> Point（顺序） -> Fence（可关联）
 - **渲染链路**：Route + Polyline（后端计算） + Point + Fence => Render（前端直接画）
 
