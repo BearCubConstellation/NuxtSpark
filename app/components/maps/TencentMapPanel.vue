@@ -178,10 +178,17 @@ function initDisplayLayers(TMap: any, map: any) {
 // 根据点位数据更新地图显示
 function updatePointDisplays() {
   // 没有地图实例或展示图层时直接返回
-  if (!tencentSdk || !tencentMap) return
-  if (!displayMarkers || !displayFenceCircles || !displayFencePolygons) return
+  if (!tencentSdk || !tencentMap) {
+    console.info('[地图点位] 地图尚未就绪，跳过更新')
+    return
+  }
+  if (!displayMarkers || !displayFenceCircles || !displayFencePolygons) {
+    console.info('[地图点位] 展示图层未准备好，跳过更新')
+    return
+  }
   // 读取外部传入的点位数据（允许为空）
   const points = props.points ?? []
+  console.info('[地图点位] 开始更新', { count: points.length })
   // 生成点位 marker 的几何数据
   const markerGeometries = points.map((item) => ({
     id: item.id,
@@ -197,6 +204,7 @@ function updatePointDisplays() {
 
   // 清理旧点位信息窗
   if (displayPointInfoWindows.length > 0) {
+    console.info('[地图点位] 清理旧信息窗', { count: displayPointInfoWindows.length })
     displayPointInfoWindows.forEach((info) => info?.close?.())
     displayPointInfoWindows = []
   }
@@ -218,7 +226,10 @@ function updatePointDisplays() {
       displayPointInfoWindows.push(infoWindow)
     })
 
+    console.info('[地图点位] 信息窗已渲染', { count: displayPointInfoWindows.length })
     fitToPoints(points)
+  } else {
+    console.info('[地图点位] 无点位可展示')
   }
 
   // 分别收集圆形与多边形围栏几何
@@ -414,8 +425,13 @@ function easeToLocation(
 
 // 根据点位数据自动调整视角
 function fitToPoints(points: PointWithFences[]) {
+  // 地图或 SDK 未就绪时不处理
   if (!tencentMap || !tencentSdk) return
+
+  // 无点位直接返回
   if (points.length === 0) return
+
+  // 单点位直接定位并使用较近视角
   if (points.length === 1) {
     const only = points[0]
     if (!only) return
@@ -426,14 +442,20 @@ function fitToPoints(points: PointWithFences[]) {
     })
     return
   }
+
+  // 多点位优先用 bounds 适配视口
   if (tencentSdk.LatLngBounds && tencentMap.fitBounds) {
     const bounds = new tencentSdk.LatLngBounds()
     points.forEach((point) => {
+      // 将每个点位扩展进边界
       bounds.extend(new tencentSdk.LatLng(point.location.lat, point.location.lng))
     })
+    // 适配视口并保留边距
     tencentMap.fitBounds(bounds, { padding: 60 })
     return
   }
+  
+  // 兜底：手动计算中心点并给一个相对合适的缩放
   const lats = points.map((point) => point.location.lat)
   const lngs = points.map((point) => point.location.lng)
   const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2
