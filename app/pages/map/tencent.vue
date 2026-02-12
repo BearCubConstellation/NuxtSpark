@@ -336,6 +336,12 @@ function handleRouteView(route: { id: string; points: Array<{ id: string; name?:
   color: #111827;
 }
 
+.point-row:hover {
+  background: #eef2ff;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
 .point-btn {
   border: 1px solid #dbe0e6;
   background: #fff;
