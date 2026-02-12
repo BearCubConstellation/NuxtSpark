@@ -218,15 +218,7 @@ function updatePointDisplays() {
       displayPointInfoWindows.push(infoWindow)
     })
 
-    const first = points[0]
-    if (first) {
-      // 平滑移动到第一个点位位置，并根据当前地图模式调整视角
-      easeToLocation(first.location.lng, first.location.lat, {
-        zoom: 17,
-        rotation: 90,
-        pitch: isMap3D.value ? 70 : 0,
-      })
-    }
+    fitToPoints(points)
   }
 
   // 分别收集圆形与多边形围栏几何
@@ -418,6 +410,39 @@ function easeToLocation(
     pitch: options?.pitch,
   }
   tencentMap.easeTo?.(view, { duration: options?.duration ?? 2000 })
+}
+
+// 根据点位数据自动调整视角
+function fitToPoints(points: PointWithFences[]) {
+  if (!tencentMap || !tencentSdk) return
+  if (points.length === 0) return
+  if (points.length === 1) {
+    const only = points[0]
+    if (!only) return
+    easeToLocation(only.location.lng, only.location.lat, {
+      zoom: 17,
+      rotation: 90,
+      pitch: isMap3D.value ? 70 : 0,
+    })
+    return
+  }
+  if (tencentSdk.LatLngBounds && tencentMap.fitBounds) {
+    const bounds = new tencentSdk.LatLngBounds()
+    points.forEach((point) => {
+      bounds.extend(new tencentSdk.LatLng(point.location.lat, point.location.lng))
+    })
+    tencentMap.fitBounds(bounds, { padding: 60 })
+    return
+  }
+  const lats = points.map((point) => point.location.lat)
+  const lngs = points.map((point) => point.location.lng)
+  const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2
+  const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2
+  easeToLocation(centerLng, centerLat, {
+    zoom: 14,
+    rotation: 0,
+    pitch: 0,
+  })
 }
 
 // 回读地图真实模式并同步 UI
